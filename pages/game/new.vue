@@ -268,17 +268,25 @@ const startGame = async () => {
 
   try {
     const gameStore = useGameStore()
+    console.log('Creating game with:', {
+      mode: selectedMode.value,
+      playerCount: selectedPlayers.value.length,
+      settings
+    })
+
     const game = await gameStore.createGame(
       selectedMode.value,
       selectedPlayers.value,
       settings
     )
 
+    console.log('Game created successfully:', game.id)
     // Navigate to the game
     navigateTo(`/game/${game.id}`)
   } catch (error) {
-    console.error('Failed to create game:', error)
-    alert('Failed to create game. Please try again.')
+    console.error('Failed to create game - Full error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    alert(`Failed to create game: ${errorMessage}\n\nCheck browser console for details.`)
   }
 }
 </script>

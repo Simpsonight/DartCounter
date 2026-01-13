@@ -1,110 +1,19 @@
 <template>
   <div class="space-y-4">
-    <!-- Current Dart Entry Display -->
-    <div class="card bg-slate-900/80 backdrop-blur">
-      <div class="text-center mb-4">
-        <div class="text-sm text-slate-400 mb-2">Current Turn</div>
-        <div class="flex justify-center items-center gap-3">
-          <div
-            v-for="(dart, index) in currentDarts"
-            :key="index"
-            class="flex flex-col items-center"
-          >
-            <div class="text-2xl font-bold text-white">
-              {{ dart.segment }}
-            </div>
-            <div class="text-sm text-slate-400">{{ dart.totalValue }}</div>
-          </div>
-          <div
-            v-for="index in (3 - currentDarts.length)"
-            :key="`empty-${index}`"
-            class="w-12 h-12 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-600"
-          >
-            -
-          </div>
-        </div>
-        <div v-if="currentDarts.length > 0" class="mt-3 text-3xl font-bold text-primary-400">
-          Total: {{ turnTotal }}
-        </div>
-      </div>
-
-      <!-- Multiplier Selection -->
-      <div class="grid grid-cols-3 gap-2 mb-4">
-        <button
-          @click="currentMultiplier = 1"
-          :class="[
-            'numpad-btn',
-            currentMultiplier === 1
-              ? 'bg-primary-600 text-white ring-2 ring-primary-400'
-              : 'bg-slate-700 text-white'
-          ]"
-        >
-          Single
-        </button>
-        <button
-          @click="currentMultiplier = 2"
-          :class="[
-            'numpad-btn',
-            currentMultiplier === 2
-              ? 'bg-dart-red text-white ring-2 ring-red-400'
-              : 'bg-slate-700 text-white'
-          ]"
-        >
-          Double
-        </button>
-        <button
-          @click="currentMultiplier = 3"
-          :class="[
-            'numpad-btn',
-            currentMultiplier === 3
-              ? 'bg-dart-green text-white ring-2 ring-green-400'
-              : 'bg-slate-700 text-white'
-          ]"
-        >
-          Triple
-        </button>
-      </div>
-
-      <!-- Numpad -->
-      <UiNumpad
-        :selected-score="pendingScore"
-        @select="handleScoreSelect"
-      />
-
-      <!-- Action Buttons -->
-      <div class="grid grid-cols-2 gap-3 mt-4">
-        <UiButton
-          variant="ghost"
-          @click="clearCurrentDart"
-          :disabled="currentDarts.length === 0"
-        >
-          Clear Dart
-        </UiButton>
-        <UiButton
-          variant="primary"
-          @click="submitTurn"
-          :disabled="currentDarts.length === 0 || submitting"
-          :loading="submitting"
-        >
-          Submit Turn
-        </UiButton>
-      </div>
-
-      <!-- Error Message -->
-      <div v-if="errorMessage" class="mt-3 p-3 bg-dart-red/20 border border-dart-red/50 rounded-lg">
-        <p class="text-sm text-dart-red">{{ errorMessage }}</p>
-      </div>
+    <!-- Error Message -->
+    <div v-if="errorMessage" class="p-3 bg-dart-red/20 border border-dart-red/50 rounded-lg">
+      <p class="text-sm text-dart-red">{{ errorMessage }}</p>
     </div>
 
-    <!-- Undo Button -->
-    <UiButton
-      v-if="canUndo"
-      variant="secondary"
-      full-width
-      @click="emit('undo')"
-    >
-      ↶ Undo Last Turn
-    </UiButton>
+    <!-- Numpad with integrated controls -->
+    <UiNumpad
+      :selected-score="pendingScore"
+      :current-multiplier="currentMultiplier"
+      :can-delete="canDelete"
+      @select="handleScoreSelect"
+      @multiplier="handleMultiplierChange"
+      @delete="emit('delete')"
+    />
   </div>
 </template>
 
@@ -113,16 +22,17 @@ import type { Dart } from '~/types/score'
 
 interface Props {
   remainingScore: number
-  canUndo?: boolean
+  canDelete?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  canUndo: false
+  canDelete: false
 })
 
 const emit = defineEmits<{
-  submit: [darts: Dart[]]
-  undo: []
+  dartThrown: [dart: Dart]
+  turnComplete: [darts: Dart[]]
+  delete: []
 }>()
 
 const { calculateDartValue, getDartSegment } = useScoreValidation()
@@ -132,12 +42,16 @@ const currentDarts = ref<Dart[]>([])
 const currentMultiplier = ref<1 | 2 | 3>(1)
 const pendingScore = ref<number | null>(null)
 const errorMessage = ref<string | null>(null)
-const submitting = ref(false)
 
 // Computed
 const turnTotal = computed(() => {
   return currentDarts.value.reduce((sum, dart) => sum + dart.totalValue, 0)
 })
+
+// Handle multiplier change from numpad
+const handleMultiplierChange = (multiplier: 1 | 2 | 3) => {
+  currentMultiplier.value = multiplier
+}
 
 // Handle score selection from numpad
 const handleScoreSelect = (score: number) => {
@@ -160,37 +74,36 @@ const handleScoreSelect = (score: number) => {
   pendingScore.value = null
   errorMessage.value = null
 
+  // Emit dart thrown event (for live update in player card)
+  emit('dartThrown', dart)
+
   // Reset multiplier to single after each dart
   currentMultiplier.value = 1
-}
 
-// Clear last dart
-const clearCurrentDart = () => {
-  if (currentDarts.value.length > 0) {
-    currentDarts.value.pop()
-    errorMessage.value = null
+  // Auto-submit after 3 darts
+  if (currentDarts.value.length === 3) {
+    setTimeout(() => {
+      submitTurn()
+    }, 300) // Small delay for visual feedback
   }
 }
 
-// Submit the turn
+
+// Submit the turn (automatically called after 3 darts or manually)
 const submitTurn = () => {
   if (currentDarts.value.length === 0) {
     return
   }
 
-  submitting.value = true
-  errorMessage.value = null
-
   try {
-    emit('submit', [...currentDarts.value])
-    // Clear after successful submit
+    emit('turnComplete', [...currentDarts.value])
+    // Clear after successful emit
     currentDarts.value = []
     currentMultiplier.value = 1
     pendingScore.value = null
+    errorMessage.value = null
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Failed to submit turn'
-  } finally {
-    submitting.value = false
   }
 }
 
@@ -203,5 +116,10 @@ watch(turnTotal, (total) => {
   } else {
     errorMessage.value = null
   }
+})
+
+// Expose currentDarts for parent component
+defineExpose({
+  currentDarts
 })
 </script>

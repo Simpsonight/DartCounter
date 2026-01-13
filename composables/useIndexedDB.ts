@@ -19,6 +19,12 @@ let dbInstance: IDBDatabase | null = null
 export const useIndexedDB = () => {
   const openDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
+      // Check if running in browser
+      if (!process.client || typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB is not available'))
+        return
+      }
+
       if (dbInstance) {
         resolve(dbInstance)
         return

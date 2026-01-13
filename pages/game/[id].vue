@@ -46,26 +46,50 @@
 
       <!-- Content -->
       <div class="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        <!-- Game Board -->
-        <GameBoard
-          :players="currentGame.players"
-          :current-player-index="currentGame.currentPlayerIndex"
-          :game-mode="currentGame.mode"
-        />
+        <!-- Player Cards -->
+        <div class="space-y-3">
+          <GamePlayerCard
+            v-for="(player, index) in currentGame.players"
+            :key="player.playerId"
+            :player="player"
+            :is-active="index === currentGame.currentPlayerIndex"
+            :current-darts="getDartsForPlayer(player.playerId)"
+          />
+        </div>
+
+        <!-- Game Stats Summary -->
+        <div class="card bg-slate-900/50">
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div class="text-2xl font-bold text-white">{{ currentGame.mode }}</div>
+              <div class="text-xs text-slate-400">Mode</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ totalRounds }}</div>
+              <div class="text-xs text-slate-400">Rounds</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ totalDarts }}</div>
+              <div class="text-xs text-slate-400">Total Darts</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Checkout Suggestions -->
         <GameCheckoutSuggestions
           v-if="currentPlayer"
-          :remaining-score="currentPlayer.remainingScore"
+          :remaining-score="provisionalScore"
         />
 
         <!-- Score Entry -->
         <GameScoreEntry
           v-if="currentPlayer"
+          ref="scoreEntryRef"
           :remaining-score="currentPlayer.remainingScore"
-          :can-undo="canUndo"
-          @submit="handleScoreSubmit"
-          @undo="handleUndo"
+          :can-delete="canDelete"
+          @dart-thrown="handleDartThrown"
+          @turn-complete="handleTurnComplete"
+          @delete="handleDeleteLast"
         />
       </div>
     </div>
@@ -148,14 +172,55 @@ import type { Dart } from '~/types/score'
 const route = useRoute()
 const gameId = route.params.id as string
 
+const gameStore = useGameStore()
+const { currentGame, loading, currentPlayer, isGameActive, canUndo, winner } = storeToRefs(gameStore)
+
 useHead({
   title: () => currentGame.value ? `${currentGame.value.mode} Game` : 'Game'
 })
 
-const gameStore = useGameStore()
-const { currentGame, loading, currentPlayer, isGameActive, canUndo, winner } = storeToRefs(gameStore)
-
 const showExitConfirm = ref(false)
+const currentDarts = ref<Dart[]>([])
+const dartHistory = ref<Array<{ dart: Dart, playerId: string, playerIndex: number, isSubmitted: boolean }>>([])
+const scoreEntryRef = ref<{ currentDarts: Dart[] } | null>(null)
+const lastDartsPerPlayer = ref<Map<string, Dart[]>>(new Map())
+
+// Computed properties for game stats
+const totalRounds = computed(() => {
+  if (!currentGame.value) return 0
+  // Round increments when player 1 is active again (after all players have played)
+  // Round 1: Player 1 is active (turnCount=0)
+  // Round 2: Player 1 is active again (turnCount=1)
+  const firstPlayer = currentGame.value.players[0]
+  const isFirstPlayerActive = currentGame.value.currentPlayerIndex === 0
+
+  // If player 1 is active, show their turnCount + 1 (current round)
+  // If player 1 is not active, show their turnCount (they haven't started the next round yet)
+  return isFirstPlayerActive ? firstPlayer.turnCount + 1 : firstPlayer.turnCount
+})
+
+const totalDarts = computed(() => {
+  if (!currentGame.value) return 0
+  return currentGame.value.players.reduce((sum, p) => sum + p.dartCount, 0)
+})
+
+const canDelete = computed(() => {
+  return currentDarts.value.length > 0 || dartHistory.value.length > 0
+})
+
+// Calculate provisional score (current player's remaining score minus current turn total)
+const provisionalScore = computed(() => {
+  if (!currentPlayer.value) return 0
+
+  // If there are darts in the current turn, subtract their total
+  if (currentDarts.value.length > 0) {
+    const turnTotal = currentDarts.value.reduce((sum, dart) => sum + dart.totalValue, 0)
+    return Math.max(0, currentPlayer.value.remainingScore - turnTotal)
+  }
+
+  // Otherwise return the actual remaining score
+  return currentPlayer.value.remainingScore
+})
 
 // Load game on mount
 onMounted(async () => {
@@ -169,21 +234,131 @@ onMounted(async () => {
   }
 })
 
-// Handle score submission
-const handleScoreSubmit = async (darts: Dart[]) => {
+// Helper to get darts for a specific player
+const getDartsForPlayer = (playerId: string): Dart[] => {
+  if (!currentGame.value) return []
+
+  // If this is the active player, show current darts first
+  if (currentGame.value.players[currentGame.value.currentPlayerIndex]?.playerId === playerId) {
+    // If we have current darts being entered, show those
+    if (currentDarts.value.length > 0) {
+      return currentDarts.value
+    }
+    // Otherwise show the last darts from their last turn
+    return lastDartsPerPlayer.value.get(playerId) || []
+  }
+
+  // For inactive players, show the last darts for this player
+  return lastDartsPerPlayer.value.get(playerId) || []
+}
+
+// Handle dart thrown (for live update)
+const handleDartThrown = (dart: Dart) => {
+  if (!currentGame.value) return
+
+  currentDarts.value.push(dart)
+
+  // Add to history (keep max 9 entries)
+  dartHistory.value.push({
+    dart,
+    playerId: currentGame.value.players[currentGame.value.currentPlayerIndex].playerId,
+    playerIndex: currentGame.value.currentPlayerIndex,
+    isSubmitted: false
+  })
+
+  if (dartHistory.value.length > 9) {
+    dartHistory.value.shift()
+  }
+}
+
+// Handle turn completion
+const handleTurnComplete = async (darts: Dart[]) => {
   try {
+    if (!currentGame.value) return
+
+    const currentPlayerId = currentGame.value.players[currentGame.value.currentPlayerIndex].playerId
+
+    // Save the darts for this player before recording the turn
+    lastDartsPerPlayer.value.set(currentPlayerId, [...darts])
+
     await gameStore.recordTurn(darts)
+
+    // Mark all current darts as submitted in history
+    for (const dart of darts) {
+      const historyEntry = dartHistory.value.find(h => h.dart === dart && !h.isSubmitted)
+      if (historyEntry) {
+        historyEntry.isSubmitted = true
+      }
+    }
+
+    // Clear current darts after successful turn (but keep history for undo)
+    currentDarts.value = []
+
+    // Clear all dart slots when a new round starts (when player 1 becomes active again)
+    if (currentGame.value && currentGame.value.currentPlayerIndex === 0) {
+      lastDartsPerPlayer.value.clear()
+    }
   } catch (error) {
     console.error('Failed to submit score:', error)
     alert(error instanceof Error ? error.message : 'Failed to submit score')
   }
 }
 
-// Handle undo
-const handleUndo = async () => {
-  const confirmed = confirm('Undo the last turn?')
-  if (confirmed) {
-    await gameStore.undoLastTurn()
+// Handle delete last dart (across turns)
+const handleDeleteLast = async () => {
+  if (dartHistory.value.length === 0) return
+
+  const lastEntry = dartHistory.value.pop()
+  if (!lastEntry || !currentGame.value) return
+
+  if (!lastEntry.isSubmitted) {
+    // Dart is in current turn - remove from both local and ScoreEntry's currentDarts
+    const dartIndex = currentDarts.value.indexOf(lastEntry.dart)
+    if (dartIndex !== -1) {
+      currentDarts.value.splice(dartIndex, 1)
+    }
+
+    // Also remove from ScoreEntry's internal currentDarts
+    if (scoreEntryRef.value?.currentDarts) {
+      const entryDartIndex = scoreEntryRef.value.currentDarts.indexOf(lastEntry.dart)
+      if (entryDartIndex !== -1) {
+        scoreEntryRef.value.currentDarts.splice(entryDartIndex, 1)
+      }
+    }
+  } else {
+    // Dart was already submitted - need to undo from game store
+    await gameStore.undoLastDart(lastEntry.dart, lastEntry.playerId)
+
+    // After undo, the game store has switched back to the player who threw the dart
+    // Update the lastDartsPerPlayer map and currentDarts to reflect the current state
+    if (currentGame.value) {
+      // Get the now-active player's ID (the one we just switched back to)
+      const nowActivePlayerId = currentGame.value.players[currentGame.value.currentPlayerIndex].playerId
+
+      // Find their last turn to show their darts
+      const lastTurn = currentGame.value.turns
+        .filter(t => t.playerId === nowActivePlayerId)
+        .pop()
+
+      if (lastTurn && lastTurn.darts.length > 0) {
+        // Set both lastDartsPerPlayer and currentDarts with the remaining darts
+        const remainingDarts = [...lastTurn.darts]
+        lastDartsPerPlayer.value.set(nowActivePlayerId, remainingDarts)
+        currentDarts.value = [...remainingDarts]
+
+        // Also update ScoreEntry's internal currentDarts
+        if (scoreEntryRef.value?.currentDarts) {
+          scoreEntryRef.value.currentDarts = [...remainingDarts]
+        }
+      } else {
+        // No darts left for this player, clear everything
+        lastDartsPerPlayer.value.set(nowActivePlayerId, [])
+        currentDarts.value = []
+        if (scoreEntryRef.value?.currentDarts) {
+          scoreEntryRef.value.currentDarts = []
+        }
+      }
+    }
   }
 }
 

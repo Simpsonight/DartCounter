@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { toRaw } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 import type { Game, GameMode, GamePlayer, GameSettings } from '~/types/game'
 import type { Turn, Dart } from '~/types/score'
@@ -40,6 +41,7 @@ export const useGameStore = defineStore('game', () => {
         successfulCheckouts: 0
       }))
 
+      // Create plain object for IndexedDB (remove Vue reactivity)
       const game: Game = {
         id: gameId,
         mode,
@@ -47,12 +49,23 @@ export const useGameStore = defineStore('game', () => {
         players: gamePlayers,
         currentPlayerIndex: 0,
         turns: [],
-        settings,
+        settings: {
+          doubleIn: settings.doubleIn,
+          doubleOut: settings.doubleOut,
+          sets: settings.sets,
+          legs: settings.legs
+        },
         startedAt: new Date()
       }
 
-      // Save to IndexedDB
-      await add('activeGames', game)
+      // Save to IndexedDB (convert to plain object without Vue reactivity)
+      const plainGame = {
+        ...game,
+        settings: toRaw(game.settings),
+        players: game.players.map(p => toRaw(p))
+      }
+
+      await add('activeGames', plainGame)
 
       currentGame.value = game
       return game
@@ -98,9 +111,12 @@ export const useGameStore = defineStore('game', () => {
     const game = currentGame.value
     const currentPlayer = game.players[game.currentPlayerIndex]
 
+    // Convert darts to plain objects (remove Vue reactivity)
+    const plainDarts = darts.map(d => toRaw(d))
+
     // Validate score entry
     const validation = validateScoreEntry(
-      darts,
+      plainDarts,
       currentPlayer.remainingScore,
       game.settings
     )
@@ -115,7 +131,7 @@ export const useGameStore = defineStore('game', () => {
       gameId: game.id,
       playerId: currentPlayer.playerId,
       turnNumber: currentPlayer.turnCount + 1,
-      darts,
+      darts: plainDarts,
       scoreBeforeTurn: currentPlayer.remainingScore,
       scoreAfterTurn: validation.isBust
         ? currentPlayer.remainingScore
@@ -129,7 +145,7 @@ export const useGameStore = defineStore('game', () => {
     // Update player stats
     if (!validation.isBust) {
       currentPlayer.remainingScore -= validation.totalScore
-      currentPlayer.dartCount += darts.length
+      currentPlayer.dartCount += plainDarts.length
       currentPlayer.turnCount += 1
 
       // Update average
@@ -166,8 +182,114 @@ export const useGameStore = defineStore('game', () => {
       game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length
     }
 
+    // Save updated game (convert to plain object)
+    const plainGame = {
+      ...game,
+      settings: toRaw(game.settings),
+      players: game.players.map(p => toRaw(p)),
+      turns: game.turns.map(t => toRaw(t))
+    }
+    await put('activeGames', plainGame)
+    currentGame.value = { ...game }
+  }
+
+  /**
+   * Undo a single dart from the last turn
+   */
+  const undoLastDart = async (dart: Dart, playerId: string): Promise<void> => {
+    if (!currentGame.value || currentGame.value.turns.length === 0) {
+      return
+    }
+
+    const game = currentGame.value
+    const lastTurn = game.turns[game.turns.length - 1]
+
+    // Check if the dart belongs to the last turn
+    if (lastTurn.playerId !== playerId) {
+      return
+    }
+
+    // Find the player
+    const playerIndex = game.players.findIndex(p => p.playerId === playerId)
+    if (playerIndex === -1) return
+    const player = game.players[playerIndex]
+
+    // If this is the only dart in the turn, remove the entire turn
+    if (lastTurn.darts.length === 1) {
+      // Revert player stats
+      player.remainingScore = lastTurn.scoreBeforeTurn
+      player.turnCount = Math.max(0, player.turnCount - 1)
+
+      if (!lastTurn.isBust) {
+        player.dartCount = Math.max(0, player.dartCount - 1)
+
+        // Recalculate average
+        if (player.turnCount > 0) {
+          const totalScored = GAME_MODES[game.mode] - player.remainingScore
+          player.averageScore = totalScored / player.turnCount
+        } else {
+          player.averageScore = 0
+        }
+
+        // Revert checkout stats
+        if (lastTurn.isCheckout) {
+          player.successfulCheckouts = Math.max(0, player.successfulCheckouts - 1)
+        }
+        if (lastTurn.scoreBeforeTurn <= 170) {
+          player.checkoutAttempts = Math.max(0, player.checkoutAttempts - 1)
+        }
+      }
+
+      // Remove the turn
+      game.turns.pop()
+
+      // Revert to previous player
+      game.currentPlayerIndex = playerIndex
+
+      // If game was completed, reactivate it
+      if (game.status === 'completed') {
+        game.status = 'active'
+        game.completedAt = undefined
+        game.winnerId = undefined
+      }
+    } else {
+      // Remove just the last dart from the turn
+      const removedDart = lastTurn.darts.pop()
+      if (!removedDart) return
+
+      // Recalculate turn total
+      const newTotal = lastTurn.darts.reduce((sum, d) => sum + d.totalValue, 0)
+
+      // Update turn
+      lastTurn.totalScore = newTotal
+      lastTurn.scoreAfterTurn = lastTurn.scoreBeforeTurn - newTotal
+      lastTurn.isBust = false // Recalculate if needed
+      lastTurn.isCheckout = false // Can't be checkout anymore
+
+      // Update player stats
+      if (!lastTurn.isBust) {
+        player.remainingScore = lastTurn.scoreAfterTurn
+        player.dartCount = Math.max(0, player.dartCount - 1)
+
+        // Recalculate average
+        if (player.turnCount > 0) {
+          const totalScored = GAME_MODES[game.mode] - player.remainingScore
+          player.averageScore = totalScored / player.turnCount
+        }
+      }
+
+      // Since we removed a dart, we need to stay on this player
+      game.currentPlayerIndex = playerIndex
+    }
+
     // Save updated game
-    await put('activeGames', game)
+    const plainGame = {
+      ...game,
+      settings: toRaw(game.settings),
+      players: game.players.map(p => toRaw(p)),
+      turns: game.turns.map(t => toRaw(t))
+    }
+    await put('activeGames', plainGame)
     currentGame.value = { ...game }
   }
 
@@ -225,8 +347,14 @@ export const useGameStore = defineStore('game', () => {
       game.winnerId = undefined
     }
 
-    // Save updated game
-    await put('activeGames', game)
+    // Save updated game (convert to plain object)
+    const plainGame = {
+      ...game,
+      settings: toRaw(game.settings),
+      players: game.players.map(p => toRaw(p)),
+      turns: game.turns.map(t => toRaw(t))
+    }
+    await put('activeGames', plainGame)
     currentGame.value = { ...game }
   }
 
@@ -280,6 +408,7 @@ export const useGameStore = defineStore('game', () => {
     createGame,
     loadGame,
     recordTurn,
+    undoLastDart,
     undoLastTurn,
     abandonGame
   }
