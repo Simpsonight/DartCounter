@@ -9,6 +9,13 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt'
   ],
 
+  css: ['~/assets/css/main.css'],
+
+  tailwindcss: {
+    cssPath: '~/assets/css/main.css',
+    configPath: 'tailwind.config.ts'
+  },
+
   app: {
     head: {
       title: 'Dart Counter',
