@@ -60,6 +60,12 @@
           <div class="text-center">
             <div class="text-6xl mb-4">🏆</div>
             <h2 class="text-2xl font-bold text-dart-gold mb-2">{{ winner?.playerName }} Wins!</h2>
+
+            <!-- Show set score if more than 1 set or leg -->
+            <div v-if="showSetsLegs" class="text-lg text-white mb-3">
+              Final Score: {{ match.finalSetScore }}
+            </div>
+
             <div class="flex items-center justify-center gap-6 text-sm text-slate-300">
               <div>
                 <div class="font-bold text-white">{{ winner?.dartCount }}</div>
@@ -72,6 +78,42 @@
               <div>
                 <div class="font-bold text-white">{{ winner?.highestTurnScore }}</div>
                 <div>Highest</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sets & Legs Summary (if applicable) -->
+        <div v-if="showSetsLegs" class="card bg-slate-900/50">
+          <h3 class="text-sm font-bold text-slate-400 mb-3">Match Format</h3>
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div class="text-2xl font-bold text-white">{{ match.totalSets === 1 ? '1 Set' : `Best of ${match.totalSets}` }}</div>
+              <div class="text-xs text-slate-400">Sets</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ match.totalLegs === 1 ? '1 Leg' : `Best of ${match.totalLegs}` }}</div>
+              <div class="text-xs text-slate-400">Legs per Set</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ match.finalSetScore }}</div>
+              <div class="text-xs text-slate-400">Final Score</div>
+            </div>
+          </div>
+
+          <!-- Sets won by each player -->
+          <div class="mt-4 pt-4 border-t border-slate-800">
+            <h4 class="text-xs font-bold text-slate-400 mb-2">Sets Won</h4>
+            <div class="flex gap-3">
+              <div
+                v-for="player in match.players"
+                :key="player.playerId"
+                class="flex-1 p-3 bg-slate-800 rounded-lg text-center"
+              >
+                <div class="text-sm text-slate-300 mb-1">{{ player.playerName }}</div>
+                <div class="text-2xl font-bold text-white">
+                  {{ match.setsWon?.[player.playerId] || 0 }}
+                </div>
               </div>
             </div>
           </div>
@@ -164,7 +206,9 @@
             >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <span class="text-sm text-slate-400">Turn {{ turn.turnNumber }}</span>
+                  <span class="text-sm text-slate-400">
+                    <span v-if="showSetsLegs && turn.setNumber && turn.legNumber">S{{ turn.setNumber }} L{{ turn.legNumber }} · </span>Turn {{ turn.turnNumber }}
+                  </span>
                   <span class="text-sm font-medium text-white">
                     {{ getPlayerName(turn.playerId) }}
                   </span>
@@ -242,6 +286,14 @@ const showDeleteConfirm = ref(false)
 
 useHead({
   title: () => match.value ? `${match.value.gameMode} Match` : 'Match Details'
+})
+
+// Show sets/legs info if match had more than 1 set or leg
+const showSetsLegs = computed(() => {
+  if (!match.value) return false
+  const sets = match.value.totalSets || 1
+  const legs = match.value.totalLegs || 1
+  return sets > 1 || legs > 1
 })
 
 // Load match on mount

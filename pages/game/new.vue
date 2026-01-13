@@ -150,6 +150,56 @@
                        checked:before:translate-x-6"
               />
             </label>
+
+            <!-- Sets -->
+            <div>
+              <label class="block text-white font-medium mb-2">
+                Sets (First to {{ Math.ceil(settings.sets / 2) }})
+              </label>
+              <div class="flex items-center gap-3">
+                <button
+                  v-for="setCount in [1, 3, 5]"
+                  :key="setCount"
+                  @click="settings.sets = setCount"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all',
+                    settings.sets === setCount
+                      ? 'border-primary-500 bg-primary-500/10 text-white'
+                      : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                  ]"
+                >
+                  {{ setCount === 1 ? '1 Set' : `Best of ${setCount}` }}
+                </button>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">
+                {{ settings.sets === 1 ? 'Single set game' : `First player to win ${Math.ceil(settings.sets / 2)} sets wins` }}
+              </p>
+            </div>
+
+            <!-- Legs -->
+            <div>
+              <label class="block text-white font-medium mb-2">
+                Legs per Set (First to {{ Math.ceil(settings.legs / 2) }})
+              </label>
+              <div class="flex items-center gap-3">
+                <button
+                  v-for="legCount in [1, 3, 5]"
+                  :key="legCount"
+                  @click="settings.legs = legCount"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all',
+                    settings.legs === legCount
+                      ? 'border-primary-500 bg-primary-500/10 text-white'
+                      : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                  ]"
+                >
+                  {{ legCount === 1 ? '1 Leg' : `Best of ${legCount}` }}
+                </button>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">
+                {{ settings.legs === 1 ? 'Single leg per set' : `First player to win ${Math.ceil(settings.legs / 2)} legs wins the set` }}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -199,7 +249,9 @@ const selectedMode = ref<GameMode>('501')
 const selectedPlayers = ref<Player[]>([])
 const settings = reactive({
   doubleIn: false,
-  doubleOut: true
+  doubleOut: true,
+  sets: 1,      // Default: Single set (casual play)
+  legs: 1       // Default: Single leg (casual play)
 })
 const showCreatePlayer = ref(false)
 

@@ -15,6 +15,11 @@ export interface Game {
   startedAt: Date
   completedAt?: Date
   winnerId?: string
+  // Sets & Legs tracking
+  currentSet: number        // 1-based index (Set 1, Set 2, etc.)
+  currentLeg: number        // 1-based index (Leg 1, Leg 2, etc.)
+  setsWon: Record<string, number>  // playerId -> sets won count
+  legsWon: Record<string, number>  // playerId -> legs won in current set
 }
 
 export interface GamePlayer {

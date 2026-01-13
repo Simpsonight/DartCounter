@@ -43,6 +43,14 @@ export const useGameStore = defineStore('game', () => {
         hasStarted: !settings.doubleIn  // If no double-in required, player has already "started"
       }))
 
+      // Initialize sets/legs tracking
+      const setsWon: Record<string, number> = {}
+      const legsWon: Record<string, number> = {}
+      players.forEach(player => {
+        setsWon[player.id] = 0
+        legsWon[player.id] = 0
+      })
+
       // Create plain object for IndexedDB (remove Vue reactivity)
       const game: Game = {
         id: gameId,
@@ -54,10 +62,14 @@ export const useGameStore = defineStore('game', () => {
         settings: {
           doubleIn: settings.doubleIn,
           doubleOut: settings.doubleOut,
-          sets: settings.sets,
-          legs: settings.legs
+          sets: settings.sets || 1,
+          legs: settings.legs || 1
         },
-        startedAt: new Date()
+        startedAt: new Date(),
+        currentSet: 1,
+        currentLeg: 1,
+        setsWon,
+        legsWon
       }
 
       // Save to IndexedDB (convert to plain object without Vue reactivity)
@@ -134,6 +146,14 @@ export const useGameStore = defineStore('game', () => {
       successfulCheckouts: player.successfulCheckouts
     }))
 
+    // Calculate final set score (e.g., "2-1" for winner vs best opponent)
+    const winnerSetsWon = game.setsWon[game.winnerId] || 0
+    const opponentSetCounts = Object.entries(game.setsWon)
+      .filter(([id]) => id !== game.winnerId)
+      .map(([_, count]) => count)
+    const opponentSetsWon = opponentSetCounts.length > 0 ? Math.max(...opponentSetCounts) : 0
+    const finalSetScore = `${winnerSetsWon}-${opponentSetsWon}`
+
     const match: Match = {
       id: game.id,
       gameMode: game.mode,
@@ -143,7 +163,11 @@ export const useGameStore = defineStore('game', () => {
       duration,
       startedAt: game.startedAt,
       completedAt: game.completedAt,
-      syncedToSupabase: false
+      syncedToSupabase: false,
+      totalSets: game.settings.sets || 1,
+      totalLegs: game.settings.legs || 1,
+      finalSetScore,
+      setsWon: toRaw(game.setsWon)
     }
 
     // Save to matches store
@@ -179,12 +203,21 @@ export const useGameStore = defineStore('game', () => {
       throw new Error(validation.errorMessage || 'Invalid score')
     }
 
+    // Calculate turn number within current leg (reset per leg, professional PDC format)
+    const turnsInCurrentLeg = game.turns.filter(
+      t => t.playerId === currentPlayer.playerId &&
+           t.setNumber === game.currentSet &&
+           t.legNumber === game.currentLeg
+    ).length
+
     // Create turn record
     const turn: Turn = {
       id: uuidv4(),
       gameId: game.id,
       playerId: currentPlayer.playerId,
-      turnNumber: currentPlayer.turnCount + 1,
+      turnNumber: turnsInCurrentLeg + 1,  // Reset per leg
+      setNumber: game.currentSet,         // Track which set
+      legNumber: game.currentLeg,         // Track which leg
       darts: plainDarts,
       scoreBeforeTurn: currentPlayer.remainingScore,
       scoreAfterTurn: validation.isBust
@@ -231,19 +264,63 @@ export const useGameStore = defineStore('game', () => {
     // Add turn to history
     game.turns.push(turn)
 
-    // Check for game completion
+    // Check for leg/set/match completion
     if (validation.isCheckout) {
-      game.status = 'completed'
-      game.completedAt = new Date()
-      game.winnerId = currentPlayer.playerId
+      // Player won this leg!
+      game.legsWon[currentPlayer.playerId] = (game.legsWon[currentPlayer.playerId] || 0) + 1
 
-      // Save to match history and remove from active games
-      await saveToMatchHistory(game)
+      const legsNeeded = Math.ceil((game.settings.legs || 1) / 2)
+      const legsWonByPlayer = game.legsWon[currentPlayer.playerId]
 
-      // Update current game state
-      currentGame.value = { ...game }
-    } else {
-      // Move to next player
+      if (legsWonByPlayer >= legsNeeded) {
+        // Player won the set!
+        game.setsWon[currentPlayer.playerId] = (game.setsWon[currentPlayer.playerId] || 0) + 1
+
+        const setsNeeded = Math.ceil((game.settings.sets || 1) / 2)
+        const setsWonByPlayer = game.setsWon[currentPlayer.playerId]
+
+        if (setsWonByPlayer >= setsNeeded) {
+          // Player won the match!
+          game.status = 'completed'
+          game.completedAt = new Date()
+          game.winnerId = currentPlayer.playerId
+
+          // Save to match history and remove from active games
+          await saveToMatchHistory(game)
+
+          // Update current game state
+          currentGame.value = { ...game }
+          return
+        } else {
+          // Start new set - reset legs and scores
+          game.currentSet += 1
+          game.currentLeg = 1
+
+          // Reset legs won for all players
+          Object.keys(game.legsWon).forEach(playerId => {
+            game.legsWon[playerId] = 0
+          })
+
+          // Reset all player scores for new set
+          game.players.forEach(player => {
+            player.remainingScore = GAME_MODES[game.mode]
+            player.hasStarted = !game.settings.doubleIn
+          })
+        }
+      } else {
+        // Start new leg within same set - reset scores
+        game.currentLeg += 1
+
+        // Reset all player scores for new leg
+        game.players.forEach(player => {
+          player.remainingScore = GAME_MODES[game.mode]
+          player.hasStarted = !game.settings.doubleIn
+        })
+      }
+    }
+
+    // Move to next player (unless game is completed)
+    if (game.status !== 'completed') {
       game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length
 
       // Save updated game (convert to plain object)
@@ -251,7 +328,9 @@ export const useGameStore = defineStore('game', () => {
         ...game,
         settings: toRaw(game.settings),
         players: game.players.map(p => toRaw(p)),
-        turns: game.turns.map(t => toRaw(t))
+        turns: game.turns.map(t => toRaw(t)),
+        setsWon: toRaw(game.setsWon),
+        legsWon: toRaw(game.legsWon)
       }
       await put('activeGames', plainGame)
       currentGame.value = { ...game }

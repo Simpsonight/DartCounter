@@ -2,7 +2,9 @@ export interface Turn {
   id: string
   gameId: string
   playerId: string
-  turnNumber: number
+  turnNumber: number        // Turn number within the current leg (resets each leg)
+  setNumber: number         // Which set this turn belongs to (1-based)
+  legNumber: number         // Which leg this turn belongs to (1-based)
   darts: Dart[]
   scoreBeforeTurn: number
   scoreAfterTurn: number

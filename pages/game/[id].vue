@@ -58,6 +58,33 @@
           />
         </div>
 
+        <!-- Sets & Legs Display (if more than 1 set or leg) -->
+        <div v-if="showSetsLegs" class="card bg-slate-900/50 border-l-4 border-l-primary-500">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-sm text-slate-400">Current Match Status</div>
+              <div class="text-xl font-bold text-white">
+                Set {{ currentGame.currentSet }} - Leg {{ currentGame.currentLeg }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Sets/Legs won by each player -->
+          <div class="grid grid-cols-2 gap-3">
+            <div
+              v-for="player in currentGame.players"
+              :key="player.playerId"
+              class="p-3 bg-slate-800 rounded-lg"
+            >
+              <div class="text-sm font-medium text-white mb-1">{{ player.playerName }}</div>
+              <div class="flex items-center gap-4 text-xs text-slate-400">
+                <span>Sets: <span class="text-white font-bold">{{ currentGame.setsWon[player.playerId] || 0 }}</span></span>
+                <span>Legs: <span class="text-white font-bold">{{ currentGame.legsWon[player.playerId] || 0 }}</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Game Stats Summary -->
         <div class="card bg-slate-900/50">
           <div class="grid grid-cols-3 gap-4 text-center">
@@ -232,6 +259,14 @@ const dartHistory = ref<Array<{ dart: Dart, playerId: string, playerIndex: numbe
 const scoreEntryRef = ref<{ currentDarts: Dart[] } | null>(null)
 const lastDartsPerPlayer = ref<Map<string, Dart[]>>(new Map())
 
+// Show sets/legs display if playing more than 1 set or 1 leg
+const showSetsLegs = computed(() => {
+  if (!currentGame.value) return false
+  const sets = currentGame.value.settings.sets || 1
+  const legs = currentGame.value.settings.legs || 1
+  return sets > 1 || legs > 1
+})
+
 // Computed properties for game stats
 const totalRounds = computed(() => {
   if (!currentGame.value) return 0
@@ -254,6 +289,16 @@ const totalDarts = computed(() => {
 const canDelete = computed(() => {
   return currentDarts.value.length > 0 || dartHistory.value.length > 0
 })
+
+// Helper to get sets won by other players
+const getSetsWonByOthers = (playerId: string): number => {
+  if (!currentGame.value) return 0
+  return Math.max(
+    ...Object.entries(currentGame.value.setsWon)
+      .filter(([id]) => id !== playerId)
+      .map(([_, count]) => count)
+  )
+}
 
 // Get the checkout score (last turn's total score)
 const getCheckoutScore = (): number => {
@@ -369,10 +414,44 @@ const handleTurnComplete = async (darts: Dart[]) => {
         'BUST!'
       )
     } else if (lastTurn && lastTurn.isCheckout) {
-      toast.success(
-        `${currentPlayerName} wins with a checkout of ${lastTurn.totalScore}!`,
-        'CHECKOUT!'
-      )
+      // Player won a leg!
+      const legsWon = currentGame.value.legsWon[currentPlayerId] || 0
+      const legsNeeded = Math.ceil((currentGame.value.settings.legs || 1) / 2)
+
+      if (legsWon >= legsNeeded) {
+        // Player won a set!
+        const setsWon = currentGame.value.setsWon[currentPlayerId] || 0
+        const setsNeeded = Math.ceil((currentGame.value.settings.sets || 1) / 2)
+
+        if (setsWon >= setsNeeded) {
+          // Player won the match!
+          toast.success(
+            `${currentPlayerName} wins the match ${setsWon}-${getSetsWonByOthers(currentPlayerId)}!`,
+            '🏆 MATCH WON!'
+          )
+        } else {
+          // Player won the set, but not the match
+          toast.success(
+            `${currentPlayerName} wins Set ${currentGame.value.currentSet - 1}! Score: ${setsWon}-${getSetsWonByOthers(currentPlayerId)}`,
+            '🎯 SET WON!'
+          )
+        }
+      } else {
+        // Player won the leg only
+        const totalLegs = currentGame.value.settings.legs || 1
+        if (totalLegs > 1) {
+          toast.success(
+            `${currentPlayerName} wins Leg ${currentGame.value.currentLeg - 1} with a checkout of ${lastTurn.totalScore}!`,
+            '✓ LEG WON!'
+          )
+        } else {
+          // Single leg game - just show checkout
+          toast.success(
+            `${currentPlayerName} wins with a checkout of ${lastTurn.totalScore}!`,
+            'CHECKOUT!'
+          )
+        }
+      }
     }
 
     // Mark all current darts as submitted in history

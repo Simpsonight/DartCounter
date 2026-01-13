@@ -11,6 +11,11 @@ export interface Match {
   startedAt: Date
   completedAt: Date
   syncedToSupabase: boolean
+  // Sets & Legs tracking
+  totalSets?: number
+  totalLegs?: number
+  finalSetScore?: string  // e.g., "2-1" for best of 3
+  setsWon?: Record<string, number>
 }
 
 export interface MatchPlayer {
