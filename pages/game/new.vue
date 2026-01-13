@@ -261,19 +261,24 @@ const handleCreatePlayer = async (data: PlayerFormData) => {
 }
 
 // Start the game
-const startGame = () => {
+const startGame = async () => {
   if (!canStartGame.value) {
     return
   }
 
-  // TODO: Create game in store and navigate to game page
-  console.log('Starting game:', {
-    mode: selectedMode.value,
-    players: selectedPlayers.value.map(p => p.name),
-    settings: settings
-  })
+  try {
+    const gameStore = useGameStore()
+    const game = await gameStore.createGame(
+      selectedMode.value,
+      selectedPlayers.value,
+      settings
+    )
 
-  // For now, just show a message
-  alert(`Game setup complete!\nMode: ${selectedMode.value}\nPlayers: ${selectedPlayers.value.length}`)
+    // Navigate to the game
+    navigateTo(`/game/${game.id}`)
+  } catch (error) {
+    console.error('Failed to create game:', error)
+    alert('Failed to create game. Please try again.')
+  }
 }
 </script>
