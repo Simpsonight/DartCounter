@@ -54,6 +54,7 @@
             :player="player"
             :is-active="index === currentGame.currentPlayerIndex"
             :current-darts="getDartsForPlayer(player.playerId)"
+            :game-settings="currentGame.settings"
           />
         </div>
 
@@ -86,6 +87,8 @@
           v-if="currentPlayer"
           ref="scoreEntryRef"
           :remaining-score="currentPlayer.remainingScore"
+          :game-settings="currentGame.settings"
+          :has-started="currentPlayer.hasStarted"
           :can-delete="canDelete"
           @dart-thrown="handleDartThrown"
           @turn-complete="handleTurnComplete"
@@ -95,11 +98,17 @@
     </div>
 
     <!-- Game Completed -->
-    <div v-else-if="currentGame.status === 'completed'" class="flex items-center justify-center min-h-screen">
-      <div class="card text-center max-w-md">
-        <div class="text-6xl mb-4">🎉</div>
-        <h2 class="text-3xl font-bold text-white mb-2">Game Over!</h2>
-        <div class="my-6">
+    <div v-else-if="currentGame.status === 'completed'" class="flex items-center justify-center min-h-screen p-4">
+      <div class="card text-center max-w-md w-full bg-gradient-to-b from-slate-900 to-slate-950">
+        <!-- Trophy Animation -->
+        <div class="text-8xl mb-4 animate-bounce">🏆</div>
+
+        <!-- Congratulations -->
+        <h2 class="text-4xl font-bold text-dart-gold mb-2">Congratulations!</h2>
+        <p class="text-xl text-slate-300 mb-6">{{ winner?.playerName }} Wins!</p>
+
+        <!-- Winner Avatar/Info -->
+        <div class="my-6 p-6 bg-gradient-to-r from-dart-gold/20 to-amber-500/20 border border-dart-gold/30 rounded-lg">
           <PlayerAvatar
             v-if="winner"
             :name="winner.playerName"
@@ -107,29 +116,57 @@
             size="xl"
             class="mx-auto mb-4"
           />
-          <p class="text-2xl font-bold text-primary-400">
-            {{ winner?.playerName }} Wins!
-          </p>
+
+          <!-- Winner Stats -->
+          <div class="grid grid-cols-3 gap-4 mt-4">
+            <div>
+              <div class="text-2xl font-bold text-white">{{ winner?.dartCount }}</div>
+              <div class="text-xs text-slate-400">Darts</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ winner?.averageScore.toFixed(1) }}</div>
+              <div class="text-xs text-slate-400">Average</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-white">{{ getCheckoutScore() }}</div>
+              <div class="text-xs text-slate-400">Checkout</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Game Stats -->
-        <div class="grid grid-cols-2 gap-4 my-6 p-4 bg-slate-800 rounded-lg">
-          <div>
-            <div class="text-2xl font-bold text-white">{{ winner?.dartCount }}</div>
-            <div class="text-sm text-slate-400">Darts Thrown</div>
-          </div>
-          <div>
-            <div class="text-2xl font-bold text-white">{{ winner?.averageScore.toFixed(1) }}</div>
-            <div class="text-sm text-slate-400">Average</div>
+        <!-- All Players Stats -->
+        <div class="my-6 p-4 bg-slate-800/50 rounded-lg">
+          <h3 class="text-sm font-bold text-slate-400 mb-3">Final Scores</h3>
+          <div class="space-y-2">
+            <div
+              v-for="(player, index) in currentGame.players"
+              :key="player.playerId"
+              class="flex items-center justify-between text-sm"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">#{{ index + 1 }}</span>
+                <span :class="player.playerId === winner?.playerId ? 'text-dart-gold font-bold' : 'text-white'">
+                  {{ player.playerName }}
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-slate-400">{{ player.remainingScore }} left</span>
+                <span class="text-white font-mono">Ø {{ player.averageScore.toFixed(1) }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
+        <!-- Action Buttons -->
         <div class="space-y-3">
           <UiButton variant="primary" full-width @click="navigateTo('/game/new')">
-            New Game
+            🎯 New Game
           </UiButton>
-          <UiButton variant="secondary" full-width @click="navigateTo('/')">
-            Back to Home
+          <UiButton variant="secondary" full-width @click="navigateTo('/history')">
+            📊 View Match History
+          </UiButton>
+          <UiButton variant="ghost" full-width @click="navigateTo('/')">
+            🏠 Back to Home
           </UiButton>
         </div>
       </div>
@@ -163,6 +200,16 @@
         </div>
       </div>
     </UiModal>
+
+    <!-- Toast Notifications -->
+    <UiToast
+      v-for="toastItem in toast.toasts.value"
+      :key="toastItem.id"
+      :message="toastItem.message"
+      :title="toastItem.title"
+      :variant="toastItem.variant"
+      :duration="toastItem.duration"
+    />
   </div>
 </template>
 
@@ -208,12 +255,40 @@ const canDelete = computed(() => {
   return currentDarts.value.length > 0 || dartHistory.value.length > 0
 })
 
+// Get the checkout score (last turn's total score)
+const getCheckoutScore = (): number => {
+  if (!currentGame.value || !winner.value) return 0
+
+  // Find the last turn for the winner (which should be the checkout turn)
+  const winnerTurns = currentGame.value.turns.filter(t => t.playerId === winner.value!.playerId)
+  const lastTurn = winnerTurns[winnerTurns.length - 1]
+
+  return lastTurn?.totalScore || 0
+}
+
 // Calculate provisional score (current player's remaining score minus current turn total)
 const provisionalScore = computed(() => {
-  if (!currentPlayer.value) return 0
+  if (!currentPlayer.value || !currentGame.value) return 0
 
-  // If there are darts in the current turn, subtract their total
+  // If there are darts in the current turn, calculate provisional score
   if (currentDarts.value.length > 0) {
+    // Check double-in rule: if player hasn't started, only count darts after first double
+    if (currentGame.value.settings.doubleIn && !currentPlayer.value.hasStarted) {
+      const hasDouble = currentDarts.value.some(dart => dart.multiplier === 2 && dart.totalValue > 0)
+
+      if (!hasDouble) {
+        // No double hit yet - no score reduction
+        return currentPlayer.value.remainingScore
+      }
+
+      // Player hit a double - count darts from first double onwards
+      const firstDoubleIndex = currentDarts.value.findIndex(dart => dart.multiplier === 2 && dart.totalValue > 0)
+      const dartsAfterDouble = currentDarts.value.slice(firstDoubleIndex)
+      const turnTotal = dartsAfterDouble.reduce((sum, dart) => sum + dart.totalValue, 0)
+      return Math.max(0, currentPlayer.value.remainingScore - turnTotal)
+    }
+
+    // Normal calculation (player has already started or no double-in rule)
     const turnTotal = currentDarts.value.reduce((sum, dart) => sum + dart.totalValue, 0)
     return Math.max(0, currentPlayer.value.remainingScore - turnTotal)
   }
@@ -272,16 +347,33 @@ const handleDartThrown = (dart: Dart) => {
 }
 
 // Handle turn completion
+const toast = useToast()
+
 const handleTurnComplete = async (darts: Dart[]) => {
   try {
     if (!currentGame.value) return
 
     const currentPlayerId = currentGame.value.players[currentGame.value.currentPlayerIndex].playerId
+    const currentPlayerName = currentGame.value.players[currentGame.value.currentPlayerIndex].playerName
 
     // Save the darts for this player before recording the turn
     lastDartsPerPlayer.value.set(currentPlayerId, [...darts])
 
     await gameStore.recordTurn(darts)
+
+    // Check if it was a bust (the turn would be in the game turns now)
+    const lastTurn = currentGame.value.turns[currentGame.value.turns.length - 1]
+    if (lastTurn && lastTurn.isBust) {
+      toast.warning(
+        `${currentPlayerName}'s turn was void. Score remains at ${lastTurn.scoreBeforeTurn}.`,
+        'BUST!'
+      )
+    } else if (lastTurn && lastTurn.isCheckout) {
+      toast.success(
+        `${currentPlayerName} wins with a checkout of ${lastTurn.totalScore}!`,
+        'CHECKOUT!'
+      )
+    }
 
     // Mark all current darts as submitted in history
     for (const dart of darts) {
@@ -300,7 +392,10 @@ const handleTurnComplete = async (darts: Dart[]) => {
     }
   } catch (error) {
     console.error('Failed to submit score:', error)
-    alert(error instanceof Error ? error.message : 'Failed to submit score')
+    toast.error(
+      error instanceof Error ? error.message : 'Failed to submit score',
+      'Error'
+    )
   }
 }
 

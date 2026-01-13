@@ -27,6 +27,7 @@ export interface GamePlayer {
   averageScore: number
   checkoutAttempts: number
   successfulCheckouts: number
+  hasStarted: boolean  // For double-in rule: true after first double hit
 }
 
 export interface GameSettings {

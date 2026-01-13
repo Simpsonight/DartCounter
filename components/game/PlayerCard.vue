@@ -61,17 +61,24 @@
 </template>
 
 <script setup lang="ts">
-import type { GamePlayer } from '~/types/game'
+import type { GamePlayer, GameSettings } from '~/types/game'
 import type { Dart } from '~/types/score'
 
 interface Props {
   player: GamePlayer
   isActive: boolean
   currentDarts?: Dart[]
+  gameSettings?: GameSettings
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  currentDarts: () => []
+  currentDarts: () => [],
+  gameSettings: () => ({
+    doubleIn: false,
+    doubleOut: true,
+    sets: 1,
+    legs: 1
+  })
 })
 
 const { isInCheckoutRange } = useCheckoutCalculator()
@@ -80,6 +87,23 @@ const { isInCheckoutRange } = useCheckoutCalculator()
 const displayScore = computed(() => {
   // If this is the active player and they have darts in progress, show provisional score
   if (props.isActive && props.currentDarts.length > 0) {
+    // Check double-in rule: if player hasn't started, only count darts after first double
+    if (props.gameSettings.doubleIn && !props.player.hasStarted) {
+      const hasDouble = props.currentDarts.some(dart => dart.multiplier === 2 && dart.totalValue > 0)
+
+      if (!hasDouble) {
+        // No double hit yet - no score reduction
+        return props.player.remainingScore
+      }
+
+      // Player hit a double - count darts from first double onwards
+      const firstDoubleIndex = props.currentDarts.findIndex(dart => dart.multiplier === 2 && dart.totalValue > 0)
+      const dartsAfterDouble = props.currentDarts.slice(firstDoubleIndex)
+      const turnTotal = dartsAfterDouble.reduce((sum, dart) => sum + dart.totalValue, 0)
+      return Math.max(0, props.player.remainingScore - turnTotal)
+    }
+
+    // Normal calculation (player has already started or no double-in rule)
     const turnTotal = props.currentDarts.reduce((sum, dart) => sum + dart.totalValue, 0)
     return Math.max(0, props.player.remainingScore - turnTotal)
   }

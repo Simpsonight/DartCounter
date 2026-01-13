@@ -24,7 +24,7 @@ export const MIN_CHECKOUT = 2
 export const MAX_CHECKOUT = 170 // T20 + T20 + Bull
 
 // Player limits
-export const MIN_PLAYERS = 2
+export const MIN_PLAYERS = 1
 export const MAX_PLAYERS = 4
 
 // Darts per turn

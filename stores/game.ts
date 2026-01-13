@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Game, GameMode, GamePlayer, GameSettings } from '~/types/game'
 import type { Turn, Dart } from '~/types/score'
 import type { Player } from '~/types/player'
+import type { Match, MatchPlayer } from '~/types/match'
 import { GAME_MODES } from '~/utils/constants'
 
 export const useGameStore = defineStore('game', () => {
@@ -38,7 +39,8 @@ export const useGameStore = defineStore('game', () => {
         dartCount: 0,
         averageScore: 0,
         checkoutAttempts: 0,
-        successfulCheckouts: 0
+        successfulCheckouts: 0,
+        hasStarted: !settings.doubleIn  // If no double-in required, player has already "started"
       }))
 
       // Create plain object for IndexedDB (remove Vue reactivity)
@@ -101,6 +103,57 @@ export const useGameStore = defineStore('game', () => {
   }
 
   /**
+   * Save completed game to match history
+   */
+  const saveToMatchHistory = async (game: Game): Promise<void> => {
+    if (!game.completedAt || !game.winnerId) {
+      throw new Error('Game is not completed')
+    }
+
+    // Calculate duration
+    const duration = game.completedAt.getTime() - game.startedAt.getTime()
+
+    // Calculate highest turn score for each player
+    const highestTurnScores = new Map<string, number>()
+    for (const turn of game.turns) {
+      const current = highestTurnScores.get(turn.playerId) || 0
+      highestTurnScores.set(turn.playerId, Math.max(current, turn.totalScore))
+    }
+
+    // Create match record
+    const matchPlayers: MatchPlayer[] = game.players.map(player => ({
+      playerId: player.playerId,
+      playerName: player.playerName,
+      playerAvatar: player.playerAvatar,
+      finalScore: player.remainingScore,
+      turnCount: player.turnCount,
+      dartCount: player.dartCount,
+      averageScore: player.averageScore,
+      highestTurnScore: highestTurnScores.get(player.playerId) || 0,
+      checkoutAttempts: player.checkoutAttempts,
+      successfulCheckouts: player.successfulCheckouts
+    }))
+
+    const match: Match = {
+      id: game.id,
+      gameMode: game.mode,
+      players: matchPlayers,
+      winnerId: game.winnerId,
+      turns: game.turns.map(t => toRaw(t)),
+      duration,
+      startedAt: game.startedAt,
+      completedAt: game.completedAt,
+      syncedToSupabase: false
+    }
+
+    // Save to matches store
+    await add('matches', toRaw(match))
+
+    // Remove from active games
+    await remove('activeGames', game.id)
+  }
+
+  /**
    * Record a turn for the current player
    */
   const recordTurn = async (darts: Dart[]): Promise<void> => {
@@ -114,11 +167,12 @@ export const useGameStore = defineStore('game', () => {
     // Convert darts to plain objects (remove Vue reactivity)
     const plainDarts = darts.map(d => toRaw(d))
 
-    // Validate score entry
+    // Validate score entry (including double-in check)
     const validation = validateScoreEntry(
       plainDarts,
       currentPlayer.remainingScore,
-      game.settings
+      game.settings,
+      currentPlayer.hasStarted
     )
 
     if (!validation.isValid) {
@@ -144,6 +198,14 @@ export const useGameStore = defineStore('game', () => {
 
     // Update player stats
     if (!validation.isBust) {
+      // If player hasn't started yet and hit a double, mark them as started
+      if (!currentPlayer.hasStarted && game.settings.doubleIn) {
+        const hasDouble = plainDarts.some(dart => dart.multiplier === 2 && dart.totalValue > 0)
+        if (hasDouble) {
+          currentPlayer.hasStarted = true
+        }
+      }
+
       currentPlayer.remainingScore -= validation.totalScore
       currentPlayer.dartCount += plainDarts.length
       currentPlayer.turnCount += 1
@@ -175,22 +237,25 @@ export const useGameStore = defineStore('game', () => {
       game.completedAt = new Date()
       game.winnerId = currentPlayer.playerId
 
-      // TODO: Save to match history
-      // TODO: Update player statistics
+      // Save to match history and remove from active games
+      await saveToMatchHistory(game)
+
+      // Update current game state
+      currentGame.value = { ...game }
     } else {
       // Move to next player
       game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length
-    }
 
-    // Save updated game (convert to plain object)
-    const plainGame = {
-      ...game,
-      settings: toRaw(game.settings),
-      players: game.players.map(p => toRaw(p)),
-      turns: game.turns.map(t => toRaw(t))
+      // Save updated game (convert to plain object)
+      const plainGame = {
+        ...game,
+        settings: toRaw(game.settings),
+        players: game.players.map(p => toRaw(p)),
+        turns: game.turns.map(t => toRaw(t))
+      }
+      await put('activeGames', plainGame)
+      currentGame.value = { ...game }
     }
-    await put('activeGames', plainGame)
-    currentGame.value = { ...game }
   }
 
   /**

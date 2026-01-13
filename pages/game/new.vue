@@ -109,7 +109,7 @@
           <!-- Minimum Players Warning -->
           <div v-if="selectedPlayers.length < MIN_PLAYERS" class="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
             <p class="text-sm text-amber-400">
-              ⚠️ Select at least {{ MIN_PLAYERS }} players to start the game
+              ⚠️ Select at least 1 player to start the game
             </p>
           </div>
         </div>

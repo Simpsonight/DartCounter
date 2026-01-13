@@ -6,10 +6,17 @@ import {
   SEGMENTS,
   BULL_SINGLE,
   BULL_DOUBLE,
-  DARTS_PER_TURN
+  DARTS_PER_TURN,
+  IMPOSSIBLE_CHECKOUTS
 } from '~/utils/constants'
 
 export const useScoreValidation = () => {
+  /**
+   * Check if a score is impossible to checkout (with double out)
+   */
+  const isImpossibleCheckout = (score: number): boolean => {
+    return IMPOSSIBLE_CHECKOUTS.includes(score)
+  }
   /**
    * Validate a single dart score
    */
@@ -51,10 +58,10 @@ export const useScoreValidation = () => {
    */
   const getDartSegment = (score: number, multiplier: 1 | 2 | 3): string => {
     if (score === BULL_SINGLE && multiplier === SEGMENTS.DOUBLE) {
-      return 'Bull'
+      return 'Bull'  // Double Bull / Bull's Eye (50)
     }
     if (score === BULL_SINGLE) {
-      return 'S-Bull'
+      return '25'  // Single Bull (outer bull)
     }
     if (score === 0) {
       return 'Miss'
@@ -68,7 +75,7 @@ export const useScoreValidation = () => {
    * Check if a score causes a bust
    * Bust conditions:
    * - Score goes below 0
-   * - Score goes to exactly 1 (impossible to finish)
+   * - Score goes to exactly 1 (only if doubleOut is enabled - impossible to finish on double)
    * - Finish without double (if doubleOut is enabled)
    */
   const isBust = (
@@ -84,8 +91,9 @@ export const useScoreValidation = () => {
       return true
     }
 
-    // Score is exactly 1 (impossible to finish)
-    if (remainingAfter === 1) {
+    // Score is exactly 1 - only a bust if doubleOut is enabled
+    // (because you can't finish on D0.5, but you CAN finish with S1 if no doubleOut)
+    if (remainingAfter === 1 && settings.doubleOut) {
       return true
     }
 
@@ -154,7 +162,8 @@ export const useScoreValidation = () => {
   const validateScoreEntry = (
     darts: Dart[],
     remainingScore: number,
-    settings: GameSettings
+    settings: GameSettings,
+    hasStarted: boolean = true
   ): ScoreEntry => {
     // Validate number of darts
     if (darts.length === 0) {
@@ -190,6 +199,39 @@ export const useScoreValidation = () => {
           isCheckout: false,
           errorMessage: `Invalid dart: ${getDartSegment(dart.score, dart.multiplier)}`
         }
+      }
+    }
+
+    // Check double-in rule: if player hasn't started and double-in is required
+    if (settings.doubleIn && !hasStarted) {
+      // Check if any dart in this turn is a double (and not a miss)
+      const hasDouble = darts.some(dart => dart.multiplier === SEGMENTS.DOUBLE && dart.totalValue > 0)
+
+      if (!hasDouble) {
+        // Player hasn't hit a double to start yet - this is a bust
+        // Score remains unchanged (totalScore: 0)
+        return {
+          darts,
+          totalScore: 0,
+          isValid: true,
+          isBust: true,
+          isCheckout: false,
+          errorMessage: 'Bust! Must hit a double to start scoring'
+        }
+      }
+
+      // Player hit a double! They can now start scoring
+      // Only count darts AFTER the first double
+      const firstDoubleIndex = darts.findIndex(dart => dart.multiplier === SEGMENTS.DOUBLE && dart.totalValue > 0)
+      const dartsAfterDouble = darts.slice(firstDoubleIndex)
+      const totalScore = dartsAfterDouble.reduce((sum, dart) => sum + dart.totalValue, 0)
+
+      return {
+        darts,
+        totalScore,
+        isValid: true,
+        isBust: false,
+        isCheckout: false
       }
     }
 
@@ -237,6 +279,7 @@ export const useScoreValidation = () => {
     isValidCheckout,
     canStart,
     validateScoreEntry,
-    getMaxPossibleRemaining
+    getMaxPossibleRemaining,
+    isImpossibleCheckout
   }
 }
