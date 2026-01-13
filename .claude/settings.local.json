@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx nuxi@latest init:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm install)",
+      "Bash(timeout 15 npm run dev)",
+      "Bash(git add:*)"
+    ]
+  }
+}
