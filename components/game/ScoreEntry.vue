@@ -1,18 +1,18 @@
 <template>
-  <div class="space-y-4">
-    <!-- Bust Warning -->
-    <div v-if="bustWarning" class="p-3 bg-dart-red/20 border border-dart-red/50 rounded-lg animate-pulse">
+  <div class="space-y-2">
+    <!-- Bust Warning (compact) -->
+    <div v-if="bustWarning" class="px-3 py-2 bg-dart-red/20 border border-dart-red/50 rounded-lg animate-pulse">
       <div class="flex items-center gap-2">
-        <span class="text-2xl">⚠️</span>
+        <span class="text-xl">⚠️</span>
         <div>
-          <p class="text-sm font-bold text-dart-red">{{ bustWarning.title }}</p>
-          <p class="text-xs text-dart-red/80">{{ bustWarning.message }}</p>
+          <span class="text-sm font-bold text-dart-red">{{ bustWarning.title }}</span>
+          <span class="text-xs text-dart-red/80 ml-2">{{ bustWarning.message }}</span>
         </div>
       </div>
     </div>
 
-    <!-- Warning Message (non-bust) -->
-    <div v-else-if="warningMessage" class="p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg">
+    <!-- Warning Message (non-bust, compact) -->
+    <div v-else-if="warningMessage" class="px-3 py-2 bg-amber-500/20 border border-amber-500/50 rounded-lg">
       <p class="text-sm text-amber-400">{{ warningMessage }}</p>
     </div>
 

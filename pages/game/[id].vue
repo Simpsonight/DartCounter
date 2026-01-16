@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-slate-950 safe-top safe-bottom pb-20">
+  <div class="min-h-screen bg-slate-950 safe-top">
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
@@ -23,9 +23,9 @@
     </div>
 
     <!-- Active Game -->
-    <div v-else-if="isGameActive">
-      <!-- Header -->
-      <div class="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800">
+    <div v-else-if="isGameActive" class="flex flex-col h-screen">
+      <!-- Header (fixed height) -->
+      <div class="flex-shrink-0 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800 z-10">
         <div class="max-w-2xl mx-auto px-4 py-3">
           <div class="flex items-center justify-between">
             <h1 class="text-xl font-bold text-white">
@@ -44,84 +44,92 @@
         </div>
       </div>
 
-      <!-- Content -->
-      <div class="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        <!-- Player Cards -->
-        <div class="space-y-3">
-          <GamePlayerCard
-            v-for="(player, index) in currentGame.players"
-            :key="player.playerId"
-            :player="player"
-            :is-active="index === currentGame.currentPlayerIndex"
-            :current-darts="getDartsForPlayer(player.playerId)"
-            :game-settings="currentGame.settings"
-          />
-        </div>
-
-        <!-- Sets & Legs Display (if more than 1 set or leg) -->
-        <div v-if="showSetsLegs" class="card bg-slate-900/50 border-l-4 border-l-primary-500">
-          <div class="flex items-center justify-between mb-3">
-            <div>
-              <div class="text-sm text-slate-400">Current Match Status</div>
-              <div class="text-xl font-bold text-white">
-                Set {{ currentGame.currentSet }} - Leg {{ currentGame.currentLeg }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Sets/Legs won by each player -->
-          <div class="grid grid-cols-2 gap-3">
-            <div
-              v-for="player in currentGame.players"
+      <!-- Scrollable Content Area -->
+      <div ref="scrollContainerRef" class="flex-1 overflow-y-auto overscroll-contain">
+        <div class="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-3">
+          <!-- Player Cards -->
+          <div class="space-y-2">
+            <GamePlayerCard
+              v-for="(player, index) in currentGame.players"
               :key="player.playerId"
-              class="p-3 bg-slate-800 rounded-lg"
-            >
-              <div class="text-sm font-medium text-white mb-1">{{ player.playerName }}</div>
-              <div class="flex items-center gap-4 text-xs text-slate-400">
-                <span>Sets: <span class="text-white font-bold">{{ currentGame.setsWon[player.playerId] || 0 }}</span></span>
-                <span>Legs: <span class="text-white font-bold">{{ currentGame.legsWon[player.playerId] || 0 }}</span></span>
+              :ref="el => setPlayerCardRef(el, index)"
+              :player="player"
+              :is-active="index === currentGame.currentPlayerIndex"
+              :current-darts="getDartsForPlayer(player.playerId)"
+              :game-settings="currentGame.settings"
+            />
+          </div>
+
+          <!-- Sets & Legs Display (if more than 1 set or leg) -->
+          <div v-if="showSetsLegs" class="card bg-slate-900/50 border-l-4 border-l-primary-500 py-3">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <div class="text-xs text-slate-400">Match Status</div>
+                <div class="text-lg font-bold text-white">
+                  Set {{ currentGame.currentSet }} - Leg {{ currentGame.currentLeg }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Sets/Legs won by each player (compact) -->
+            <div class="flex gap-2 text-xs">
+              <div
+                v-for="player in currentGame.players"
+                :key="player.playerId"
+                class="flex-1 p-2 bg-slate-800 rounded"
+              >
+                <div class="font-medium text-white truncate">{{ player.playerName }}</div>
+                <div class="text-slate-400">
+                  S: <span class="text-white font-bold">{{ currentGame.setsWon[player.playerId] || 0 }}</span>
+                  L: <span class="text-white font-bold">{{ currentGame.legsWon[player.playerId] || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Game Stats Summary (more compact) -->
+          <div class="card bg-slate-900/50 py-2">
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div class="text-xl font-bold text-white">{{ currentGame.mode }}</div>
+                <div class="text-xs text-slate-400">Mode</div>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-white">{{ totalRounds }}</div>
+                <div class="text-xs text-slate-400">Rounds</div>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-white">{{ totalDarts }}</div>
+                <div class="text-xs text-slate-400">Darts</div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Game Stats Summary -->
-        <div class="card bg-slate-900/50">
-          <div class="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div class="text-2xl font-bold text-white">{{ currentGame.mode }}</div>
-              <div class="text-xs text-slate-400">Mode</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-white">{{ totalRounds }}</div>
-              <div class="text-xs text-slate-400">Rounds</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-white">{{ totalDarts }}</div>
-              <div class="text-xs text-slate-400">Total Darts</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Checkout Suggestions -->
+      <!-- Fixed Bottom: Checkout Suggestions + Score Entry -->
+      <div class="flex-shrink-0 bg-slate-950 border-t border-slate-800 safe-bottom">
+        <!-- Checkout Suggestions (compact bar) -->
         <GameCheckoutSuggestions
           v-if="currentPlayer"
           :remaining-score="provisionalScore"
           :darts-thrown="currentDarts.length"
         />
 
-        <!-- Score Entry -->
-        <GameScoreEntry
-          v-if="currentPlayer"
-          ref="scoreEntryRef"
-          :remaining-score="currentPlayer.remainingScore"
-          :game-settings="currentGame.settings"
-          :has-started="currentPlayer.hasStarted"
-          :can-delete="canDelete"
-          @dart-thrown="handleDartThrown"
-          @turn-complete="handleTurnComplete"
-          @delete="handleDeleteLast"
-        />
+        <!-- Score Entry with Numpad -->
+        <div class="max-w-2xl mx-auto px-4 py-3">
+          <GameScoreEntry
+            v-if="currentPlayer"
+            ref="scoreEntryRef"
+            :remaining-score="currentPlayer.remainingScore"
+            :game-settings="currentGame.settings"
+            :has-started="currentPlayer.hasStarted"
+            :can-delete="canDelete"
+            @dart-thrown="handleDartThrown"
+            @turn-complete="handleTurnComplete"
+            @delete="handleDeleteLast"
+          />
+        </div>
       </div>
     </div>
 
@@ -259,6 +267,47 @@ const currentDarts = ref<Dart[]>([])
 const dartHistory = ref<Array<{ dart: Dart, playerId: string, playerIndex: number, isSubmitted: boolean }>>([])
 const scoreEntryRef = ref<{ currentDarts: Dart[] } | null>(null)
 const lastDartsPerPlayer = ref<Map<string, Dart[]>>(new Map())
+
+// Refs for auto-scrolling to active player
+const scrollContainerRef = ref<HTMLElement | null>(null)
+const playerCardRefs = ref<Map<number, HTMLElement>>(new Map())
+
+// Store player card refs
+const setPlayerCardRef = (el: any, index: number) => {
+  if (el?.$el) {
+    playerCardRefs.value.set(index, el.$el)
+  } else if (el) {
+    playerCardRefs.value.set(index, el)
+  }
+}
+
+// Scroll to active player when player changes
+const scrollToActivePlayer = () => {
+  if (!currentGame.value || !scrollContainerRef.value) return
+
+  const activeIndex = currentGame.value.currentPlayerIndex
+  const activeCard = playerCardRefs.value.get(activeIndex)
+
+  if (activeCard) {
+    // Scroll the active card into view with smooth animation
+    // Use 'start' to ensure the card is at the top of the scrollable area
+    // This prevents it from being hidden behind the fixed bottom numpad
+    activeCard.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
+  }
+}
+
+// Watch for player changes and scroll to active player
+watch(() => currentGame.value?.currentPlayerIndex, (newIndex, oldIndex) => {
+  if (newIndex !== oldIndex && newIndex !== undefined) {
+    // Small delay to ensure DOM is updated
+    nextTick(() => {
+      scrollToActivePlayer()
+    })
+  }
+})
 
 // Show sets/legs display if playing more than 1 set or 1 leg
 const showSetsLegs = computed(() => {

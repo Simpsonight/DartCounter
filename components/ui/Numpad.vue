@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-7 gap-2">
+  <div class="grid grid-cols-7 gap-1.5">
     <!-- Row 1: 1-7 -->
     <button
       v-for="num in [1, 2, 3, 4, 5, 6, 7]"
@@ -123,13 +123,13 @@ const emit = defineEmits<{
 
 <style scoped>
 .numpad-btn {
-  /* Ensures optimal mobile touch target size */
-  min-height: 56px;
-  min-width: 56px;
+  /* Compact but still touch-friendly (44px min recommended by Apple) */
+  min-height: 48px;
+  min-width: 44px;
 
   /* On larger screens, make them bigger */
   @media (min-width: 640px) {
-    min-height: 64px;
+    min-height: 56px;
   }
 }
 </style>

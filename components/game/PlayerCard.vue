@@ -1,11 +1,11 @@
 <template>
   <div
     :class="[
-      'relative overflow-hidden transition-all duration-300',
-      isActive ? 'bg-slate-800 border-l-4 border-l-primary-500' : 'bg-slate-900'
+      'relative overflow-hidden transition-all duration-300 rounded-lg',
+      isActive ? 'bg-slate-800 border-l-4 border-l-primary-500 shadow-lg shadow-primary-500/10' : 'bg-slate-900'
     ]"
   >
-    <div class="p-4">
+    <div class="p-3">
       <div class="flex items-center justify-between">
         <!-- Left: Score & Name -->
         <div class="flex-1 min-w-0">
