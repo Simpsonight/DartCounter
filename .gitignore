@@ -4,6 +4,7 @@
 .nuxt
 .nitro
 .cache
+.claude
 dist
 
 # Node dependencies
@@ -36,4 +37,3 @@ coverage
 dev-dist
 public/sw.js
 public/workbox-*.js
-.claude/settings.local.json
