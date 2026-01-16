@@ -237,11 +237,9 @@ watch(currentDarts, (darts) => {
     if (props.gameSettings.doubleOut && isImpossibleCheckout(remainingAfter)) {
       warningMessage.value = `⚠️ ${remainingAfter} is impossible to checkout! Avoid this score.`
     }
-    // Show non-bust warnings
+    // Show checkout warning
     else if (remainingAfter === 0) {
       warningMessage.value = '🎯 CHECKOUT! Game will end after this turn.'
-    } else if (remainingAfter <= 40 && remainingAfter >= 2) {
-      warningMessage.value = `${remainingAfter} remaining - You're in checkout range!`
     } else {
       warningMessage.value = null
     }
