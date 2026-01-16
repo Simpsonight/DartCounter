@@ -30,7 +30,7 @@
         </div>
 
         <!-- Right: Current Darts (always show 3 slots for all players) -->
-        <div class="flex gap-2">
+        <div class="relative flex gap-2">
           <div
             v-for="index in 3"
             :key="index"
@@ -49,11 +49,13 @@
               <div class="text-lg text-slate-600">-</div>
             </template>
           </div>
-        </div>
 
-        <!-- Checkout Indicator (overlay on darts) -->
-        <div v-if="!isActive && isInCheckoutRange(player.remainingScore)" class="absolute right-4 top-1/2 -translate-y-1/2">
-          <div class="text-dart-gold text-2xl">★</div>
+          <!-- Checkout Indicator - Small star badge -->
+          <div v-if="!isActive && isInCheckoutRange(player.remainingScore)" class="absolute -top-2 -right-2">
+            <div class="bg-dart-gold rounded-full w-6 h-6 flex items-center justify-center text-slate-950 text-sm font-bold shadow-lg">
+              ★
+            </div>
+          </div>
         </div>
       </div>
     </div>

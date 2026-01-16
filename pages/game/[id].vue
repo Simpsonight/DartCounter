@@ -107,6 +107,7 @@
         <GameCheckoutSuggestions
           v-if="currentPlayer"
           :remaining-score="provisionalScore"
+          :darts-thrown="currentDarts.length"
         />
 
         <!-- Score Entry -->
