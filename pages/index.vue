@@ -54,7 +54,7 @@
 
       <div class="pt-6 border-t border-slate-800">
         <p class="text-sm text-slate-500">
-          Demo version v0.0.1 — © 2026 Dart Counter
+          {{ formattedVersion }} {{ releaseLabel }} — © 2026 Dart Counter
         </p>
       </div>
     </div>
@@ -87,6 +87,8 @@ const {
   promptInstall,
   dismissIOSInstructions
 } = useInstallPrompt()
+
+const { formattedVersion, releaseLabel } = useVersion()
 
 // Control when to show the banner (don't show immediately on mount)
 const showBanner = ref(false)

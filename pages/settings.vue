@@ -191,13 +191,18 @@
           </h2>
 
           <div class="space-y-3 text-sm">
-            <div class="flex justify-between">
+            <div class="flex justify-between items-center">
               <span class="text-slate-400">Version</span>
-              <span class="text-white">0.0.1</span>
+              <div class="flex items-center gap-2">
+                <span class="text-white font-mono">{{ formattedVersion }}</span>
+                <span class="px-1.5 py-0.5 text-xs rounded bg-primary-500/20 text-primary-400">
+                  {{ releaseLabel }}
+                </span>
+              </div>
             </div>
             <div class="flex justify-between">
-              <span class="text-slate-400">Build</span>
-              <span class="text-white">{{ buildDate }}</span>
+              <span class="text-slate-400">Release Date</span>
+              <span class="text-white">{{ versionInfo.date }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-slate-400">PWA Status</span>
@@ -205,6 +210,21 @@
                 {{ isInstalled ? 'Installed' : 'Browser' }}
               </span>
             </div>
+          </div>
+
+          <!-- What's New -->
+          <div class="mt-4 pt-4 border-t border-slate-700">
+            <h3 class="text-sm font-medium text-slate-300 mb-2">What's New in {{ formattedVersion }}</h3>
+            <ul class="space-y-1">
+              <li
+                v-for="(change, index) in latestChanges"
+                :key="index"
+                class="text-xs text-slate-400 flex items-start gap-2"
+              >
+                <span :class="getChangeTypeColor(change.type)">{{ getChangeTypeIcon(change.type) }}</span>
+                <span>{{ change.description }}</span>
+              </li>
+            </ul>
           </div>
         </section>
       </div>
@@ -242,6 +262,7 @@
 <script setup lang="ts">
 import type { GameMode } from '~/types/game'
 import type { AppSettings } from '~/types/settings'
+import type { ChangelogEntry } from '~/utils/changelog'
 
 useHead({
   title: 'Settings - Dart Counter'
@@ -250,6 +271,7 @@ useHead({
 const settingsStore = useSettingsStore()
 const { settings } = storeToRefs(settingsStore)
 const { isInstalled } = useInstallPrompt()
+const { formattedVersion, versionInfo, releaseLabel, changelog } = useVersion()
 const toast = useToast()
 
 const gameModes: GameMode[] = ['301', '501', '701']
@@ -262,20 +284,43 @@ onMounted(async () => {
 
 // Check haptic support
 const supportsHaptic = computed(() => {
-  if (!process.client) return false
+  if (import.meta.server) return false
   return 'vibrate' in navigator
 })
 
 // Storage info (simplified)
 const storageInfo = computed(() => {
-  if (!process.client) return 'N/A'
+  if (import.meta.server) return 'N/A'
   return 'IndexedDB'
 })
 
-// Build date (static for now)
-const buildDate = computed(() => {
-  return new Date().toISOString().split('T')[0]
+// Latest changes from changelog
+const latestChanges = computed(() => {
+  return changelog.value[0]?.changes.slice(0, 5) ?? []
 })
+
+// Helper functions for change type display
+const getChangeTypeIcon = (type: ChangelogEntry['changes'][0]['type']) => {
+  const icons: Record<string, string> = {
+    added: '+',
+    changed: '~',
+    fixed: '✓',
+    removed: '-',
+    security: '!'
+  }
+  return icons[type] ?? '•'
+}
+
+const getChangeTypeColor = (type: ChangelogEntry['changes'][0]['type']) => {
+  const colors: Record<string, string> = {
+    added: 'text-green-400',
+    changed: 'text-blue-400',
+    fixed: 'text-amber-400',
+    removed: 'text-red-400',
+    security: 'text-red-500'
+  }
+  return colors[type] ?? 'text-slate-400'
+}
 
 // Update a single setting
 const updateSetting = async <K extends keyof AppSettings>(
