@@ -242,25 +242,36 @@ useHead({
 })
 
 const playersStore = usePlayersStore()
+const settingsStore = useSettingsStore()
 const { players } = storeToRefs(playersStore)
 
-// Game setup state
+// Game setup state - initialize with defaults, will be updated from settings
 const selectedMode = ref<GameMode>('501')
 const selectedPlayers = ref<Player[]>([])
 const settings = reactive({
   doubleIn: false,
   doubleOut: true,
-  sets: 1,      // Default: Single set (casual play)
-  legs: 1       // Default: Single leg (casual play)
+  sets: 1,
+  legs: 1
 })
 const showCreatePlayer = ref(false)
 
 // Available game modes
 const gameModes: GameMode[] = ['301', '501', '701']
 
-// Load players on mount
+// Load players and settings on mount
 onMounted(async () => {
-  await playersStore.loadPlayers()
+  await Promise.all([
+    playersStore.loadPlayers(),
+    settingsStore.loadSettings()
+  ])
+
+  // Apply user's default settings
+  selectedMode.value = settingsStore.settings.defaultGameMode
+  settings.doubleIn = settingsStore.settings.defaultDoubleIn
+  settings.doubleOut = settingsStore.settings.defaultDoubleOut
+  settings.sets = settingsStore.settings.defaultSets
+  settings.legs = settingsStore.settings.defaultLegs
 })
 
 // Available players (not yet selected)

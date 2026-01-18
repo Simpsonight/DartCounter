@@ -1,6 +1,7 @@
 <template>
   <div>
     <NuxtPage />
+    <UiToastContainer />
   </div>
 </template>
 

@@ -4,7 +4,7 @@
     <button
       v-for="num in [1, 2, 3, 4, 5, 6, 7]"
       :key="`row1-${num}`"
-      @click="emit('select', num)"
+      @click="handleSelect(num)"
       :class="[
         'numpad-btn',
         selectedScore === num ? 'ring-2 ring-primary-500 bg-slate-700' : ''
@@ -17,7 +17,7 @@
     <button
       v-for="num in [8, 9, 10, 11, 12, 13, 14]"
       :key="`row2-${num}`"
-      @click="emit('select', num)"
+      @click="handleSelect(num)"
       :class="[
         'numpad-btn',
         selectedScore === num ? 'ring-2 ring-primary-500 bg-slate-700' : ''
@@ -30,7 +30,7 @@
     <button
       v-for="num in [15, 16, 17, 18, 19, 20]"
       :key="`row3-${num}`"
-      @click="emit('select', num)"
+      @click="handleSelect(num)"
       :class="[
         'numpad-btn',
         selectedScore === num ? 'ring-2 ring-primary-500 bg-slate-700' : ''
@@ -40,7 +40,7 @@
     </button>
     <!-- Bull (25) -->
     <button
-      @click="emit('select', 25)"
+      @click="handleSelect(25)"
       :class="[
         'numpad-btn bg-dart-gold text-slate-900 hover:bg-yellow-500',
         selectedScore === 25 ? 'ring-2 ring-primary-500' : ''
@@ -51,7 +51,7 @@
 
     <!-- Row 4: 0, Double, Triple, Delete -->
     <button
-      @click="emit('select', 0)"
+      @click="handleSelect(0)"
       :class="[
         'numpad-btn',
         selectedScore === 0 ? 'ring-2 ring-primary-500 bg-slate-700' : ''
@@ -62,7 +62,7 @@
 
     <!-- Double (2 cols wide) -->
     <button
-      @click="emit('multiplier', 2)"
+      @click="handleMultiplier(2)"
       :class="[
         'numpad-btn col-span-2',
         currentMultiplier === 2
@@ -75,7 +75,7 @@
 
     <!-- Triple (2 cols wide) -->
     <button
-      @click="emit('multiplier', 3)"
+      @click="handleMultiplier(3)"
       :class="[
         'numpad-btn col-span-2',
         currentMultiplier === 3
@@ -88,7 +88,7 @@
 
     <!-- Delete (2 cols wide) -->
     <button
-      @click="emit('delete')"
+      @click="handleDelete"
       :disabled="!canDelete"
       :class="[
         'numpad-btn col-span-2',
@@ -119,6 +119,23 @@ const emit = defineEmits<{
   multiplier: [multiplier: 1 | 2 | 3]
   delete: []
 }>()
+
+const haptic = useHaptic()
+
+const handleSelect = (score: number) => {
+  haptic.tap()
+  emit('select', score)
+}
+
+const handleMultiplier = (multiplier: 2 | 3) => {
+  haptic.doubleTap()
+  emit('multiplier', multiplier)
+}
+
+const handleDelete = () => {
+  haptic.warning()
+  emit('delete')
+}
 </script>
 
 <style scoped>

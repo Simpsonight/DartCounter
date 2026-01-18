@@ -109,9 +109,9 @@
 
       <!-- Fixed Bottom: Checkout Suggestions + Score Entry -->
       <div class="flex-shrink-0 bg-slate-950 border-t border-slate-800 safe-bottom">
-        <!-- Checkout Suggestions (compact bar) -->
+        <!-- Checkout Suggestions (compact bar) - only shown if enabled in settings -->
         <GameCheckoutSuggestions
-          v-if="currentPlayer"
+          v-if="currentPlayer && showCheckoutHints"
           :remaining-score="provisionalScore"
           :darts-thrown="currentDarts.length"
         />
@@ -237,15 +237,6 @@
       </div>
     </UiModal>
 
-    <!-- Toast Notifications -->
-    <UiToast
-      v-for="toastItem in toast.toasts.value"
-      :key="toastItem.id"
-      :message="toastItem.message"
-      :title="toastItem.title"
-      :variant="toastItem.variant"
-      :duration="toastItem.duration"
-    />
   </div>
 </template>
 
@@ -256,7 +247,9 @@ const route = useRoute()
 const gameId = route.params.id as string
 
 const gameStore = useGameStore()
+const settingsStore = useSettingsStore()
 const { currentGame, loading, currentPlayer, isGameActive, canUndo, winner } = storeToRefs(gameStore)
+const { showCheckoutHints } = storeToRefs(settingsStore)
 
 useHead({
   title: () => currentGame.value ? `${currentGame.value.mode} Game` : 'Game'
@@ -592,17 +585,29 @@ const handleAbandonGame = async () => {
   navigateTo('/')
 }
 
-// Prevent accidental navigation
+// Prevent accidental navigation - Vue Router guard
 onBeforeRouteLeave((to, from, next) => {
   if (isGameActive.value && !showExitConfirm.value) {
-    const answer = confirm('Leave the game? Your progress will be lost.')
-    if (answer) {
-      next()
-    } else {
-      next(false)
-    }
+    showExitConfirm.value = true
+    next(false)
   } else {
     next()
   }
+})
+
+// Prevent accidental tab close/refresh - Browser beforeunload event
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (isGameActive.value) {
+    // Modern browsers ignore custom messages, but this triggers the dialog
+    event.preventDefault()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
