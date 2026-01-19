@@ -64,67 +64,42 @@
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="max-w-2xl mx-auto px-4 py-6">
-        <h2 class="text-xl font-bold text-white mb-4">Statistics</h2>
-
-        <div class="grid grid-cols-2 gap-4 mb-6">
-          <!-- Games Played -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-primary-400 mb-1">
-              {{ player.stats.gamesPlayed }}
-            </div>
-            <div class="text-sm text-slate-400">Games Played</div>
-          </div>
-
-          <!-- Games Won -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-dart-green mb-1">
-              {{ player.stats.gamesWon }}
-            </div>
-            <div class="text-sm text-slate-400">Games Won</div>
-          </div>
-
-          <!-- Win Rate -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-dart-gold mb-1">
-              {{ winRate }}%
-            </div>
-            <div class="text-sm text-slate-400">Win Rate</div>
-          </div>
-
-          <!-- Average Score -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-white mb-1">
-              {{ player.stats.averageScore.toFixed(1) }}
-            </div>
-            <div class="text-sm text-slate-400">Average Score</div>
-          </div>
-
-          <!-- Highest Checkout -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-dart-red mb-1">
-              {{ player.stats.highestCheckout }}
-            </div>
-            <div class="text-sm text-slate-400">Highest Checkout</div>
-          </div>
-
-          <!-- Checkout % -->
-          <div class="card text-center">
-            <div class="text-3xl font-bold text-primary-400 mb-1">
-              {{ player.stats.checkoutPercentage.toFixed(0) }}%
-            </div>
-            <div class="text-sm text-slate-400">Checkout Success</div>
+      <!-- Tab Navigation -->
+      <div class="sticky top-0 z-10 bg-slate-950 border-b border-slate-800">
+        <div class="max-w-2xl mx-auto px-4">
+          <div class="flex">
+            <button
+              @click="activeTab = 'stats'"
+              class="flex-1 py-3 text-center font-medium transition-colors border-b-2"
+              :class="activeTab === 'stats'
+                ? 'text-primary-400 border-primary-400'
+                : 'text-slate-400 border-transparent hover:text-white'"
+            >
+              Statistics
+            </button>
+            <button
+              @click="activeTab = 'history'"
+              class="flex-1 py-3 text-center font-medium transition-colors border-b-2"
+              :class="activeTab === 'history'
+                ? 'text-primary-400 border-primary-400'
+                : 'text-slate-400 border-transparent hover:text-white'"
+            >
+              Match History
+            </button>
           </div>
         </div>
+      </div>
 
-        <!-- Match History (Coming Soon) -->
-        <div class="card text-center py-8 border-dashed">
-          <div class="text-4xl mb-3">📊</div>
-          <h3 class="text-lg font-semibold text-white mb-2">Match History</h3>
-          <p class="text-sm text-slate-400">
-            Match history will be available in Phase 6
-          </p>
+      <!-- Tab Content -->
+      <div class="max-w-2xl mx-auto px-4 py-6 pb-24">
+        <!-- Statistics Tab -->
+        <div v-if="activeTab === 'stats'">
+          <PlayerStats :player-id="playerId" />
+        </div>
+
+        <!-- Match History Tab -->
+        <div v-else-if="activeTab === 'history'">
+          <PlayerMatchHistory :player-id="playerId" :player-name="player.name" />
         </div>
       </div>
 
@@ -194,26 +169,22 @@ import type { PlayerFormData } from '~/types/player'
 const route = useRoute()
 const playerId = route.params.id as string
 
+const playersStore = usePlayersStore()
+const player = ref(await playersStore.getPlayer(playerId))
+const loading = ref(false)
+
+// useHead must come after player is defined
 useHead({
   title: () => player.value?.name || 'Player Details'
 })
 
-const playersStore = usePlayersStore()
-const player = ref(await playersStore.getPlayer(playerId))
-const loading = ref(false)
+// Tabs
+const activeTab = ref<'stats' | 'history'>('stats')
 
 // Modals
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
 const deleting = ref(false)
-
-// Computed
-const winRate = computed(() => {
-  if (!player.value || player.value.stats.gamesPlayed === 0) {
-    return 0
-  }
-  return Math.round((player.value.stats.gamesWon / player.value.stats.gamesPlayed) * 100)
-})
 
 // Format date
 const formatDate = (date: Date) => {

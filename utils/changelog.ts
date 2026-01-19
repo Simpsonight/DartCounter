@@ -24,6 +24,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.3.0',
+    date: '2026-01-19',
+    title: 'Statistics & Match History',
+    changes: [
+      { type: 'added', description: 'Professional dart statistics (3-dart average, first 9 avg, checkout %)' },
+      { type: 'added', description: 'Player statistics page with detailed performance metrics' },
+      { type: 'added', description: 'Performance trend chart showing 3-dart average over time' },
+      { type: 'added', description: 'High scores tracking (180s, 140+, 100+)' },
+      { type: 'added', description: 'Checkout analysis by score range (2-50, 51-80, 81-100, 101-130, 131-170)' },
+      { type: 'added', description: 'Match history filters (game mode, player, time period)' },
+      { type: 'added', description: 'Stats summary on match history page (matches, players, play time)' },
+      { type: 'added', description: 'Recent form indicator (last 5 games W/L)' },
+      { type: 'added', description: 'Stats breakdown by game mode (301, 501, 701)' },
+      { type: 'added', description: 'Player match history tab with game details' },
+      { type: 'changed', description: 'Player list now shows real statistics from match history' },
+      { type: 'fixed', description: 'Player stats showing 0 games - now calculated from matches' }
+    ]
+  },
+  {
     version: '0.2.0',
     date: '2026-01-18',
     title: 'Settings & Polish',
