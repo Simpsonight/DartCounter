@@ -7,7 +7,7 @@ export const useInstallPrompt = () => {
 
   // Check if running as PWA
   const checkIfInstalled = () => {
-    if (process.client) {
+    if (import.meta.client) {
       // Check if running in standalone mode
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                           (window.navigator as any).standalone ||
@@ -22,7 +22,7 @@ export const useInstallPrompt = () => {
 
   // Listen for beforeinstallprompt event (Chrome, Edge, Samsung Browser)
   const setupInstallPrompt = () => {
-    if (process.client) {
+    if (import.meta.client) {
       window.addEventListener('beforeinstallprompt', (e: Event) => {
         // Prevent the mini-infobar from appearing on mobile
         e.preventDefault()
@@ -69,14 +69,14 @@ export const useInstallPrompt = () => {
     showIOSInstructions.value = false
 
     // Store in localStorage to not show again for 30 days
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem('ios-install-dismissed', Date.now().toString())
     }
   }
 
   // Check if iOS instructions were recently dismissed
   const shouldShowIOSInstructions = (): boolean => {
-    if (!process.client || !isIOS.value || isInstalled.value) {
+    if (!import.meta.client || !isIOS.value || isInstalled.value) {
       return false
     }
 

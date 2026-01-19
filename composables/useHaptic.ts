@@ -1,12 +1,36 @@
 /**
  * Haptic feedback composable for touch interactions
  * Provides vibration patterns for different game events
+ *
+ * Uses ios-haptics library which works on:
+ * - iOS Safari 17.4+ (using hidden checkbox switch trick)
+ * - Android browsers (using navigator.vibrate)
  */
+
+// Import haptic functions from ios-haptics library
+// This library uses a clever trick: on iOS Safari 17.4+, it creates a hidden
+// <input type="checkbox" switch> element and toggles it, which triggers haptic feedback
+let hapticLib: typeof import('ios-haptics') | null = null
+
+// Lazy load the library only on client
+const loadHapticLib = async () => {
+  if (import.meta.server) return null
+  if (!hapticLib) {
+    try {
+      hapticLib = await import('ios-haptics')
+    } catch (e) {
+      console.debug('Failed to load ios-haptics:', e)
+    }
+  }
+  return hapticLib
+}
+
 export const useHaptic = () => {
-  // Check if haptic feedback is supported
+  // Check if we're on a touch device (haptics make sense on mobile)
   const isSupported = computed(() => {
-    if (!process.client) return false
-    return 'vibrate' in navigator
+    if (import.meta.server) return false
+    // Check for touch support or vibration API
+    return 'ontouchstart' in window || 'vibrate' in navigator
   })
 
   // Lazy load settings to avoid circular dependency
@@ -23,16 +47,51 @@ export const useHaptic = () => {
   })
 
   /**
-   * Trigger a vibration pattern
-   * @param pattern - Single duration or array of durations (vibrate, pause, vibrate...)
+   * Trigger a single haptic pulse
+   * Works on iOS Safari 17.4+ and Android
    */
-  const vibrate = (pattern: number | number[]) => {
+  const triggerHaptic = async () => {
     if (!isEnabled.value) return
 
     try {
-      navigator.vibrate(pattern)
+      const lib = await loadHapticLib()
+      if (lib?.haptic) {
+        lib.haptic()
+      }
     } catch (error) {
       // Silently fail - haptics are non-critical
+      console.debug('Haptic feedback failed:', error)
+    }
+  }
+
+  /**
+   * Trigger confirm haptic pattern (double pulse)
+   */
+  const triggerConfirm = async () => {
+    if (!isEnabled.value) return
+
+    try {
+      const lib = await loadHapticLib()
+      if (lib?.haptic?.confirm) {
+        lib.haptic.confirm()
+      }
+    } catch (error) {
+      console.debug('Haptic feedback failed:', error)
+    }
+  }
+
+  /**
+   * Trigger error haptic pattern (triple pulse)
+   */
+  const triggerError = async () => {
+    if (!isEnabled.value) return
+
+    try {
+      const lib = await loadHapticLib()
+      if (lib?.haptic?.error) {
+        lib.haptic.error()
+      }
+    } catch (error) {
       console.debug('Haptic feedback failed:', error)
     }
   }
@@ -41,55 +100,54 @@ export const useHaptic = () => {
    * Light tap - for button presses and score selection
    */
   const tap = () => {
-    vibrate(10)
+    triggerHaptic()
   }
 
   /**
    * Medium tap - for confirming actions
    */
   const confirm = () => {
-    vibrate(20)
+    triggerConfirm()
   }
 
   /**
    * Success pattern - for checkouts and wins
    */
   const success = () => {
-    vibrate([50, 50, 50])
+    triggerConfirm()
   }
 
   /**
    * Error/Bust pattern - for busts and invalid actions
    */
   const error = () => {
-    vibrate([100, 50, 100])
+    triggerError()
   }
 
   /**
    * Warning pattern - for warnings
    */
   const warning = () => {
-    vibrate([30, 30, 30])
+    triggerHaptic()
   }
 
   /**
    * Double tap - for multiplier selection
    */
   const doubleTap = () => {
-    vibrate([15, 30, 15])
+    triggerConfirm()
   }
 
   /**
    * Heavy impact - for checkout/win celebration
    */
   const heavyImpact = () => {
-    vibrate([0, 50, 100])
+    triggerConfirm()
   }
 
   return {
     isSupported,
     isEnabled,
-    vibrate,
     tap,
     confirm,
     success,

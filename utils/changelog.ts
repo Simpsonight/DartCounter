@@ -24,6 +24,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.3.1',
+    date: '2026-01-19',
+    title: 'iOS Haptic Feedback & Fixes',
+    changes: [
+      { type: 'added', description: 'iOS Safari haptic feedback support (iOS 17.4+) via ios-haptics library' },
+      { type: 'fixed', description: 'Settings not persisting after app reload' },
+      { type: 'fixed', description: 'Settings save error (DataCloneError) with Vue reactivity' },
+      { type: 'fixed', description: 'Deprecated process.client usage replaced with import.meta.client' }
+    ]
+  },
+  {
     version: '0.3.0',
     date: '2026-01-19',
     title: 'Statistics & Match History',

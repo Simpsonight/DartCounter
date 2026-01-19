@@ -271,10 +271,12 @@ onMounted(async () => {
   await settingsStore.loadSettings()
 })
 
-// Check haptic support
+// Check haptic support (uses same logic as useHaptic composable)
+// Now supports iOS Safari 17.4+ via ios-haptics library
 const supportsHaptic = computed(() => {
   if (import.meta.server) return false
-  return 'vibrate' in navigator
+  // Check for touch support or vibration API
+  return 'ontouchstart' in window || 'vibrate' in navigator
 })
 
 // Storage info (simplified)
