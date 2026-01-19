@@ -436,6 +436,7 @@ const handleDartThrown = (dart: Dart) => {
 
 // Handle turn completion
 const toast = useToast()
+const sound = useSound()
 
 const handleTurnComplete = async (darts: Dart[]) => {
   try {
@@ -443,6 +444,9 @@ const handleTurnComplete = async (darts: Dart[]) => {
 
     const currentPlayerId = currentGame.value.players[currentGame.value.currentPlayerIndex].playerId
     const currentPlayerName = currentGame.value.players[currentGame.value.currentPlayerIndex].playerName
+
+    // Calculate turn total for sound effects
+    const turnTotal = darts.reduce((sum, dart) => sum + dart.totalValue, 0)
 
     // Save the darts for this player before recording the turn
     lastDartsPerPlayer.value.set(currentPlayerId, [...darts])
@@ -452,6 +456,8 @@ const handleTurnComplete = async (darts: Dart[]) => {
     // Check if it was a bust (the turn would be in the game turns now)
     const lastTurn = currentGame.value.turns[currentGame.value.turns.length - 1]
     if (lastTurn && lastTurn.isBust) {
+      // Play bust sound
+      sound.playBust()
       toast.warning(
         `${currentPlayerName}'s turn was void. Score remains at ${lastTurn.scoreBeforeTurn}.`,
         'BUST!'
@@ -467,20 +473,23 @@ const handleTurnComplete = async (darts: Dart[]) => {
         const setsNeeded = Math.ceil((currentGame.value.settings.sets || 1) / 2)
 
         if (setsWon >= setsNeeded) {
-          // Player won the match!
+          // Player won the match! Play victory fanfare
+          sound.playWinMatch()
           toast.success(
             `${currentPlayerName} wins the match ${setsWon}-${getSetsWonByOthers(currentPlayerId)}!`,
             '🏆 MATCH WON!'
           )
         } else {
           // Player won the set, but not the match
+          sound.playCheckout()
           toast.success(
             `${currentPlayerName} wins Set ${currentGame.value.currentSet - 1}! Score: ${setsWon}-${getSetsWonByOthers(currentPlayerId)}`,
             '🎯 SET WON!'
           )
         }
       } else {
-        // Player won the leg only
+        // Player won the leg only - play checkout sound
+        sound.playCheckout()
         const totalLegs = currentGame.value.settings.legs || 1
         if (totalLegs > 1) {
           toast.success(
@@ -494,6 +503,19 @@ const handleTurnComplete = async (darts: Dart[]) => {
             'CHECKOUT!'
           )
         }
+      }
+    } else if (lastTurn && !lastTurn.isBust) {
+      // Normal turn completed - check for high scores
+      if (turnTotal === 180) {
+        // Maximum score! Play epic 180 sound
+        sound.play180()
+        toast.success(`${currentPlayerName} scores ONE HUNDRED AND EIGHTY!`, '🎯 180!')
+      } else if (turnTotal >= 140) {
+        // High score 140+
+        sound.playHighScore()
+      } else if (turnTotal >= 100) {
+        // Good score 100+
+        sound.playConfirm()
       }
     }
 

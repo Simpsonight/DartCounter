@@ -24,6 +24,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.3.2',
+    date: '2026-01-19',
+    title: 'Sound Effects',
+    changes: [
+      { type: 'added', description: 'Sound effects for game events (checkout, bust, 180, high scores)' },
+      { type: 'added', description: 'Victory fanfare for match wins' },
+      { type: 'added', description: 'Audio feedback synthesized via Web Audio API (no external files)' },
+      { type: 'added', description: 'Special "ONE HUNDRED AND EIGHTY!" celebration sound' }
+    ]
+  },
+  {
     version: '0.3.1',
     date: '2026-01-19',
     title: 'iOS Haptic Feedback & Fixes',
