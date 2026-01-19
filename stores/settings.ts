@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { toRaw } from 'vue'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 
@@ -38,7 +39,9 @@ export const useSettingsStore = defineStore('settings', () => {
     if (import.meta.server) return
 
     try {
-      await put('settings', { key: SETTINGS_KEY, value: settings.value })
+      // Use toRaw() to get plain object that can be cloned by IndexedDB
+      const rawSettings = toRaw(settings.value)
+      await put('settings', { key: SETTINGS_KEY, value: { ...rawSettings } })
     } catch (error) {
       console.error('Failed to save settings:', error)
     }
