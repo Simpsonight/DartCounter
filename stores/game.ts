@@ -426,12 +426,14 @@ export const useGameStore = defineStore('game', () => {
       game.currentPlayerIndex = playerIndex
     }
 
-    // Save updated game
+    // Save updated game (convert all reactive objects to plain objects)
     const plainGame = {
       ...game,
       settings: toRaw(game.settings),
       players: game.players.map(p => toRaw(p)),
-      turns: game.turns.map(t => toRaw(t))
+      turns: game.turns.map(t => toRaw(t)),
+      setsWon: toRaw(game.setsWon),
+      legsWon: toRaw(game.legsWon)
     }
     await put('activeGames', plainGame)
     currentGame.value = { ...game }
@@ -496,7 +498,9 @@ export const useGameStore = defineStore('game', () => {
       ...game,
       settings: toRaw(game.settings),
       players: game.players.map(p => toRaw(p)),
-      turns: game.turns.map(t => toRaw(t))
+      turns: game.turns.map(t => toRaw(t)),
+      setsWon: toRaw(game.setsWon),
+      legsWon: toRaw(game.legsWon)
     }
     await put('activeGames', plainGame)
     currentGame.value = { ...game }
