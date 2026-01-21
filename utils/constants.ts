@@ -46,3 +46,36 @@ export const IMPOSSIBLE_CHECKOUTS = [169, 168, 166, 165, 163, 162, 159]
 
 // Minimum score that requires a double to finish
 export const MIN_DOUBLE_OUT = 2
+
+/**
+ * Dartboard segment adjacency map
+ * Each segment maps to its two neighboring segments (clockwise order on the board)
+ * Used for realistic miss simulation in bot dart generation
+ *
+ * Dartboard layout (clockwise from top):
+ * 20 - 1 - 18 - 4 - 13 - 6 - 10 - 15 - 2 - 17 - 3 - 19 - 7 - 16 - 8 - 11 - 14 - 9 - 12 - 5
+ */
+export const DARTBOARD_ADJACENCY: Record<number, [number, number]> = {
+  20: [5, 1],
+  1: [20, 18],
+  18: [1, 4],
+  4: [18, 13],
+  13: [4, 6],
+  6: [13, 10],
+  10: [6, 15],
+  15: [10, 2],
+  2: [15, 17],
+  17: [2, 3],
+  3: [17, 19],
+  19: [3, 7],
+  7: [19, 16],
+  16: [7, 8],
+  8: [16, 11],
+  11: [8, 14],
+  14: [11, 9],
+  9: [14, 12],
+  12: [9, 5],
+  5: [12, 20],
+  // Bull has no adjacent segments (misses go to random single)
+  25: [25, 25]
+}

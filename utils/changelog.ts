@@ -24,6 +24,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.4.0',
+    date: '2026-01-21',
+    title: 'Bot Player',
+    changes: [
+      { type: 'added', description: 'Bot-Gegner für 1v1-Spiele mit drei Schwierigkeitsstufen' },
+      { type: 'added', description: 'Anfänger-Bot (Ø 30): Einfacher Gegner für entspannte Spiele' },
+      { type: 'added', description: 'Mittel-Bot (Ø 50): Fordernder Gegner auf Liga-Niveau' },
+      { type: 'added', description: 'Profi-Bot (Ø 95): PDC-Level für erfahrene Spieler' },
+      { type: 'added', description: 'Realistische Wurfsimulation mit Dartboard-Adjacency' },
+      { type: 'added', description: 'Bot-Schwierigkeits-Einstellung in den Settings' },
+      { type: 'added', description: 'Schnellstart "Gegen Bot spielen" im Game Setup' },
+      { type: 'added', description: 'Bot-Indikator (🤖) in der Spieleranzeige' }
+    ]
+  },
+  {
     version: '0.3.2',
     date: '2026-01-19',
     title: 'Sound Effects',

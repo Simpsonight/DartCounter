@@ -1,4 +1,5 @@
 import type { Turn } from './score'
+import type { BotDifficulty } from './bot'
 
 export type GameMode = '301' | '501' | '701'
 
@@ -33,6 +34,9 @@ export interface GamePlayer {
   checkoutAttempts: number
   successfulCheckouts: number
   hasStarted: boolean  // For double-in rule: true after first double hit
+  // Bot player fields
+  isBot?: boolean
+  botDifficulty?: BotDifficulty
 }
 
 export interface GameSettings {

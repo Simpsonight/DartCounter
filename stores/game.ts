@@ -5,7 +5,9 @@ import type { Game, GameMode, GamePlayer, GameSettings } from '~/types/game'
 import type { Turn, Dart } from '~/types/score'
 import type { Player } from '~/types/player'
 import type { Match, MatchPlayer } from '~/types/match'
+import type { BotDifficulty } from '~/types/bot'
 import { GAME_MODES } from '~/utils/constants'
+import { isBotPlayerId, getBotDifficultyFromId } from '~/types/bot'
 
 export const useGameStore = defineStore('game', () => {
   const currentGame = ref<Game | null>(null)
@@ -30,18 +32,26 @@ export const useGameStore = defineStore('game', () => {
       const gameId = uuidv4()
       const startingScore = GAME_MODES[mode]
 
-      const gamePlayers: GamePlayer[] = players.map(player => ({
-        playerId: player.id,
-        playerName: player.name,
-        playerAvatar: player.avatar,
-        remainingScore: startingScore,
-        turnCount: 0,
-        dartCount: 0,
-        averageScore: 0,
-        checkoutAttempts: 0,
-        successfulCheckouts: 0,
-        hasStarted: !settings.doubleIn  // If no double-in required, player has already "started"
-      }))
+      const gamePlayers: GamePlayer[] = players.map(player => {
+        // Check if this is a bot player
+        const isBot = isBotPlayerId(player.id)
+        const botDifficulty = isBot ? getBotDifficultyFromId(player.id) : undefined
+
+        return {
+          playerId: player.id,
+          playerName: player.name,
+          playerAvatar: player.avatar,
+          remainingScore: startingScore,
+          turnCount: 0,
+          dartCount: 0,
+          averageScore: 0,
+          checkoutAttempts: 0,
+          successfulCheckouts: 0,
+          hasStarted: !settings.doubleIn,  // If no double-in required, player has already "started"
+          isBot,
+          botDifficulty: botDifficulty || undefined
+        }
+      })
 
       // Initialize sets/legs tracking
       const setsWon: Record<string, number> = {}
@@ -527,6 +537,10 @@ export const useGameStore = defineStore('game', () => {
     return currentGame.value.players[currentGame.value.currentPlayerIndex]
   })
 
+  const isCurrentPlayerBot = computed(() => {
+    return currentPlayer.value?.isBot ?? false
+  })
+
   const isGameActive = computed(() => {
     return currentGame.value?.status === 'active'
   })
@@ -548,6 +562,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Computed
     currentPlayer,
+    isCurrentPlayerBot,
     isGameActive,
     canUndo,
     winner,

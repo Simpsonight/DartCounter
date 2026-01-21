@@ -116,10 +116,23 @@
           :darts-thrown="currentDarts.length"
         />
 
-        <!-- Score Entry with Numpad -->
+        <!-- Score Entry with Numpad (only for human players) -->
         <div class="max-w-2xl mx-auto px-4 py-3">
+          <!-- Bot Turn Indicator -->
+          <div v-if="isCurrentPlayerBot && isBotExecuting" class="text-center py-6">
+            <div class="text-4xl mb-3 animate-bounce">🤖</div>
+            <p class="text-lg text-primary-400 animate-pulse">{{ currentPlayer?.playerName }} wirft...</p>
+          </div>
+
+          <!-- Waiting for Bot to Start -->
+          <div v-else-if="isCurrentPlayerBot && !isBotExecuting" class="text-center py-6">
+            <div class="text-4xl mb-3">🎯</div>
+            <p class="text-slate-400">{{ currentPlayer?.playerName }} ist am Zug...</p>
+          </div>
+
+          <!-- Human Player Score Entry -->
           <GameScoreEntry
-            v-if="currentPlayer"
+            v-else-if="currentPlayer"
             ref="scoreEntryRef"
             :remaining-score="currentPlayer.remainingScore"
             :game-settings="currentGame.settings"
@@ -248,8 +261,11 @@ const gameId = route.params.id as string
 
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
-const { currentGame, loading, currentPlayer, isGameActive, canUndo, winner } = storeToRefs(gameStore)
+const { currentGame, loading, currentPlayer, isGameActive, isCurrentPlayerBot, canUndo, winner } = storeToRefs(gameStore)
 const { showCheckoutHints } = storeToRefs(settingsStore)
+
+// Bot player handling
+const { executeBotTurn, isExecuting: isBotExecuting } = useBotPlayer()
 
 useHead({
   title: () => currentGame.value ? `${currentGame.value.mode} Game` : 'Game'
@@ -394,8 +410,59 @@ onMounted(async () => {
     setTimeout(() => {
       navigateTo('/')
     }, 2000)
+    return
+  }
+
+  // Check if current player is a bot and execute their turn
+  if (isCurrentPlayerBot.value && isGameActive.value) {
+    await executeBotTurnIfNeeded()
   }
 })
+
+// Watch for player changes to trigger bot turns
+watch([() => currentGame.value?.currentPlayerIndex, isGameActive], async ([newIndex, gameActive], [oldIndex]) => {
+  if (newIndex !== oldIndex && gameActive && isCurrentPlayerBot.value) {
+    // Small delay before bot starts their turn
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await executeBotTurnIfNeeded()
+  }
+})
+
+// Execute bot turn if current player is a bot
+const executeBotTurnIfNeeded = async () => {
+  if (!currentGame.value || !currentPlayer.value || !isCurrentPlayerBot.value || !isGameActive.value) {
+    return
+  }
+
+  const botPlayer = currentPlayer.value
+  if (!botPlayer.botDifficulty) return
+
+  // Execute bot turn with callbacks for dart-by-dart animation
+  await executeBotTurn(
+    botPlayer.remainingScore,
+    botPlayer.botDifficulty,
+    currentGame.value.settings,
+    botPlayer.hasStarted,
+    // onDartThrown callback - update UI as each dart is thrown
+    (dart: Dart, _dartIndex: number) => {
+      currentDarts.value.push(dart)
+
+      // Add to dart history
+      if (currentGame.value) {
+        dartHistory.value.push({
+          dart,
+          playerId: botPlayer.playerId,
+          playerIndex: currentGame.value.currentPlayerIndex,
+          isSubmitted: false
+        })
+      }
+    },
+    // onTurnComplete callback - submit the turn
+    async (darts: Dart[]) => {
+      await handleTurnComplete(darts)
+    }
+  )
+}
 
 // Helper to get darts for a specific player
 const getDartsForPlayer = (playerId: string): Dart[] => {

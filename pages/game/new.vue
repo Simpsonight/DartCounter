@@ -58,9 +58,18 @@
               :key="player.id"
               class="flex items-center gap-3 p-3 rounded-lg bg-slate-800"
             >
-              <PlayerAvatar :name="player.name" :avatar="player.avatar" size="sm" />
+              <!-- Bot avatar or player avatar -->
+              <div v-if="player.isBot" class="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-xl">
+                🤖
+              </div>
+              <PlayerAvatar v-else :name="player.name" :avatar="player.avatar" size="sm" />
               <div class="flex-1 min-w-0">
-                <div class="text-white font-medium truncate">{{ player.name }}</div>
+                <div class="text-white font-medium truncate flex items-center gap-2">
+                  {{ player.name }}
+                  <span v-if="player.isBot" class="text-xs text-primary-400 font-normal">
+                    ({{ BOT_DIFFICULTY_LABELS[player.botDifficulty || 'medium'].sublabel }})
+                  </span>
+                </div>
                 <div class="text-xs text-slate-400">Player {{ index + 1 }}</div>
               </div>
               <button
@@ -104,6 +113,44 @@
             >
               + Create New Player
             </UiButton>
+
+            <!-- Play against Bot Section -->
+            <div class="mt-4 pt-4 border-t border-slate-700">
+              <h3 class="text-sm font-medium text-slate-300 mb-3">Schnellstart</h3>
+
+              <UiButton
+                variant="secondary"
+                full-width
+                @click="addBotPlayer"
+                :disabled="selectedPlayers.length >= 2 || hasBotPlayer"
+              >
+                <span class="flex items-center justify-center gap-2">
+                  <span class="text-xl">🤖</span>
+                  Gegen Bot spielen
+                </span>
+              </UiButton>
+
+              <!-- Bot Difficulty Selection (shown when bot is in game) -->
+              <div v-if="hasBotPlayer" class="mt-3 p-3 bg-slate-800 rounded-lg">
+                <label class="block text-sm text-slate-400 mb-2">Bot-Schwierigkeit</label>
+                <div class="grid grid-cols-3 gap-2">
+                  <button
+                    v-for="level in botDifficulties"
+                    :key="level.value"
+                    @click="changeBotDifficulty(level.value)"
+                    :class="[
+                      'py-2 px-3 rounded-lg text-sm transition-all flex flex-col items-center',
+                      selectedBotDifficulty === level.value
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    ]"
+                  >
+                    <span class="font-medium">{{ level.label }}</span>
+                    <span class="text-xs opacity-70">{{ level.sublabel }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Minimum Players Warning -->
@@ -235,7 +282,9 @@
 <script setup lang="ts">
 import type { GameMode } from '~/types/game'
 import type { Player, PlayerFormData } from '~/types/player'
+import type { BotDifficulty } from '~/types/bot'
 import { MIN_PLAYERS, MAX_PLAYERS, GAME_MODES } from '~/utils/constants'
+import { BOT_CONFIGS, BOT_DIFFICULTY_LABELS, generateBotId } from '~/types/bot'
 
 useHead({
   title: 'New Game'
@@ -256,8 +305,18 @@ const settings = reactive({
 })
 const showCreatePlayer = ref(false)
 
+// Bot state
+const selectedBotDifficulty = ref<BotDifficulty>('medium')
+
 // Available game modes
 const gameModes: GameMode[] = ['301', '501', '701']
+
+// Bot difficulty options for UI
+const botDifficulties: { value: BotDifficulty; label: string; sublabel: string }[] = [
+  { value: 'easy', ...BOT_DIFFICULTY_LABELS.easy },
+  { value: 'medium', ...BOT_DIFFICULTY_LABELS.medium },
+  { value: 'pro', ...BOT_DIFFICULTY_LABELS.pro }
+]
 
 // Load players and settings on mount
 onMounted(async () => {
@@ -272,6 +331,7 @@ onMounted(async () => {
   settings.doubleOut = settingsStore.settings.defaultDoubleOut
   settings.sets = settingsStore.settings.defaultSets
   settings.legs = settingsStore.settings.defaultLegs
+  selectedBotDifficulty.value = settingsStore.settings.defaultBotDifficulty
 })
 
 // Available players (not yet selected)
@@ -279,6 +339,16 @@ const availablePlayers = computed(() => {
   return players.value.filter(
     p => !selectedPlayers.value.find(sp => sp.id === p.id)
   )
+})
+
+// Check if a bot is already in the game
+const hasBotPlayer = computed(() => {
+  return selectedPlayers.value.some(p => p.id.startsWith('bot-'))
+})
+
+// Get the current bot player (if any)
+const currentBotPlayer = computed(() => {
+  return selectedPlayers.value.find(p => p.id.startsWith('bot-'))
 })
 
 // Can start game validation
@@ -310,6 +380,54 @@ const addPlayer = (player: Player) => {
 // Remove player from game
 const removePlayer = (playerId: string) => {
   selectedPlayers.value = selectedPlayers.value.filter(p => p.id !== playerId)
+}
+
+// Add a bot player
+const addBotPlayer = () => {
+  if (selectedPlayers.value.length >= MAX_PLAYERS || hasBotPlayer.value) {
+    return
+  }
+
+  const config = BOT_CONFIGS[selectedBotDifficulty.value]
+  const botPlayer: Player = {
+    id: generateBotId(selectedBotDifficulty.value),
+    name: config.name,
+    avatar: undefined,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isBot: true,
+    botDifficulty: selectedBotDifficulty.value,
+    stats: {
+      gamesPlayed: 0,
+      gamesWon: 0,
+      totalDarts: 0,
+      totalScore: 0,
+      averageScore: 0,
+      highestCheckout: 0,
+      checkoutPercentage: 0
+    }
+  }
+
+  selectedPlayers.value.push(botPlayer)
+}
+
+// Change bot difficulty (updates existing bot player)
+const changeBotDifficulty = (difficulty: BotDifficulty) => {
+  selectedBotDifficulty.value = difficulty
+
+  // Update existing bot player if present
+  if (currentBotPlayer.value) {
+    const config = BOT_CONFIGS[difficulty]
+    const botIndex = selectedPlayers.value.findIndex(p => p.id.startsWith('bot-'))
+    if (botIndex !== -1) {
+      selectedPlayers.value[botIndex] = {
+        ...selectedPlayers.value[botIndex],
+        id: generateBotId(difficulty),
+        name: config.name,
+        botDifficulty: difficulty
+      }
+    }
+  }
 }
 
 // Create new player and add to game

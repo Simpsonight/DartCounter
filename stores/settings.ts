@@ -79,6 +79,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const hapticEnabled = computed(() => settings.value.hapticEnabled)
   const showCheckoutHints = computed(() => settings.value.showCheckoutHints)
   const defaultGameMode = computed(() => settings.value.defaultGameMode)
+  const defaultBotDifficulty = computed(() => settings.value.defaultBotDifficulty)
 
   return {
     // State
@@ -90,6 +91,7 @@ export const useSettingsStore = defineStore('settings', () => {
     hapticEnabled,
     showCheckoutHints,
     defaultGameMode,
+    defaultBotDifficulty,
 
     // Actions
     loadSettings,

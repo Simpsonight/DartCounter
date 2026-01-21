@@ -1,4 +1,5 @@
 import type { GameMode } from './game'
+import type { BotDifficulty } from './bot'
 
 export interface Player {
   id: string
@@ -8,6 +9,9 @@ export interface Player {
   updatedAt: Date
   stats: PlayerStats
   supabaseId?: string
+  // Bot player fields
+  isBot?: boolean
+  botDifficulty?: BotDifficulty
 }
 
 export interface PlayerStats {

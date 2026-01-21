@@ -1,4 +1,5 @@
 import type { GameMode } from './game'
+import type { BotDifficulty } from './bot'
 
 export interface AppSettings {
   // Game defaults
@@ -7,6 +8,9 @@ export interface AppSettings {
   defaultDoubleOut: boolean
   defaultSets: number
   defaultLegs: number
+
+  // Bot settings
+  defaultBotDifficulty: BotDifficulty
 
   // UI preferences
   soundEnabled: boolean
@@ -24,6 +28,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultDoubleOut: true,
   defaultSets: 1,
   defaultLegs: 1,
+
+  // Bot settings
+  defaultBotDifficulty: 'medium',
 
   // UI preferences
   soundEnabled: true,

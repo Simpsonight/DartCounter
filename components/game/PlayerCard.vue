@@ -16,8 +16,12 @@
             ]">
               {{ displayScore }}
             </div>
-            <div class="text-lg text-slate-400">
+            <div class="text-lg text-slate-400 flex items-center gap-1">
+              <span v-if="player.isBot" class="text-primary-400">🤖</span>
               {{ player.playerName }}
+              <span v-if="player.isBot && player.botDifficulty" class="text-xs text-primary-400/70">
+                ({{ difficultyLabel }})
+              </span>
             </div>
           </div>
 
@@ -65,6 +69,7 @@
 <script setup lang="ts">
 import type { GamePlayer, GameSettings } from '~/types/game'
 import type { Dart } from '~/types/score'
+import { BOT_DIFFICULTY_LABELS } from '~/types/bot'
 
 interface Props {
   player: GamePlayer
@@ -84,6 +89,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { isInCheckoutRange } = useCheckoutCalculator()
+
+// Bot difficulty label
+const difficultyLabel = computed(() => {
+  if (!props.player.botDifficulty) return ''
+  return BOT_DIFFICULTY_LABELS[props.player.botDifficulty]?.sublabel || ''
+})
 
 // Calculate the display score (remaining score minus current turn total)
 const displayScore = computed(() => {

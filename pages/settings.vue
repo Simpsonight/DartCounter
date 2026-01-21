@@ -112,6 +112,37 @@
           </div>
         </section>
 
+        <!-- Bot Settings Section -->
+        <section class="card">
+          <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <span class="text-xl">🤖</span>
+            Bot-Einstellungen
+          </h2>
+          <p class="text-sm text-slate-400 mb-4">
+            Konfiguriere den Standard-Schwierigkeitsgrad für Bot-Gegner.
+          </p>
+
+          <div>
+            <label class="block text-white font-medium mb-2">Standard Bot-Schwierigkeit</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="level in botDifficulties"
+                :key="level.value"
+                @click="updateSetting('defaultBotDifficulty', level.value)"
+                :class="[
+                  'py-3 px-4 rounded-lg border-2 transition-all flex flex-col items-center',
+                  settings.defaultBotDifficulty === level.value
+                    ? 'border-primary-500 bg-primary-500/10'
+                    : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                ]"
+              >
+                <div :class="settings.defaultBotDifficulty === level.value ? 'text-white' : 'text-slate-300'" class="font-bold">{{ level.label }}</div>
+                <div class="text-xs text-slate-500">{{ level.sublabel }}</div>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <!-- Experience Section -->
         <section class="card">
           <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -252,6 +283,8 @@
 import type { GameMode } from '~/types/game'
 import type { AppSettings } from '~/types/settings'
 import type { ChangelogEntry } from '~/utils/changelog'
+import type { BotDifficulty } from '~/types/bot'
+import { BOT_DIFFICULTY_LABELS } from '~/types/bot'
 
 useHead({
   title: 'Settings - Dart Counter'
@@ -265,6 +298,13 @@ const toast = useToast()
 
 const gameModes: GameMode[] = ['301', '501', '701']
 const showResetConfirm = ref(false)
+
+// Bot difficulty options
+const botDifficulties: { value: BotDifficulty; label: string; sublabel: string }[] = [
+  { value: 'easy', ...BOT_DIFFICULTY_LABELS.easy },
+  { value: 'medium', ...BOT_DIFFICULTY_LABELS.medium },
+  { value: 'pro', ...BOT_DIFFICULTY_LABELS.pro }
+]
 
 // Load settings on mount
 onMounted(async () => {
