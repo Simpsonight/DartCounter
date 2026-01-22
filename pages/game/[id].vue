@@ -25,24 +25,10 @@
     <!-- Active Game -->
     <div v-else-if="isGameActive" class="flex flex-col h-screen">
       <!-- Header (fixed height) -->
-      <div class="flex-shrink-0 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800 z-10">
-        <div class="max-w-2xl mx-auto px-4 py-3">
-          <div class="flex items-center justify-between">
-            <h1 class="text-xl font-bold text-white">
-              {{ currentGame.mode }} Game
-            </h1>
-            <button
-              @click="showExitConfirm = true"
-              class="p-2 text-slate-400 hover:text-dart-red transition-colors"
-              title="Exit game"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      <GameHeader
+        :title="`${currentGame.mode} Game`"
+        @exit="showExitConfirm = true"
+      />
 
       <!-- Scrollable Content Area -->
       <div ref="scrollContainerRef" class="flex-1 overflow-y-auto overscroll-contain">
@@ -147,79 +133,15 @@
     </div>
 
     <!-- Game Completed -->
-    <div v-else-if="currentGame.status === 'completed'" class="flex items-center justify-center min-h-screen p-4">
-      <div class="card text-center max-w-md w-full bg-gradient-to-b from-slate-900 to-slate-950">
-        <!-- Trophy Animation -->
-        <div class="text-8xl mb-4 animate-bounce">🏆</div>
-
-        <!-- Congratulations -->
-        <h2 class="text-4xl font-bold text-dart-gold mb-2">Congratulations!</h2>
-        <p class="text-xl text-slate-300 mb-6">{{ winner?.playerName }} Wins!</p>
-
-        <!-- Winner Avatar/Info -->
-        <div class="my-6 p-6 bg-gradient-to-r from-dart-gold/20 to-amber-500/20 border border-dart-gold/30 rounded-lg">
-          <PlayerAvatar
-            v-if="winner"
-            :name="winner.playerName"
-            :avatar="winner.playerAvatar"
-            size="xl"
-            class="mx-auto mb-4"
-          />
-
-          <!-- Winner Stats -->
-          <div class="grid grid-cols-3 gap-4 mt-4">
-            <div>
-              <div class="text-2xl font-bold text-white">{{ winner?.dartCount }}</div>
-              <div class="text-xs text-slate-400">Darts</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-white">{{ winner?.averageScore.toFixed(1) }}</div>
-              <div class="text-xs text-slate-400">Average</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-white">{{ getCheckoutScore() }}</div>
-              <div class="text-xs text-slate-400">Checkout</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- All Players Stats -->
-        <div class="my-6 p-4 bg-slate-800/50 rounded-lg">
-          <h3 class="text-sm font-bold text-slate-400 mb-3">Final Scores</h3>
-          <div class="space-y-2">
-            <div
-              v-for="(player, index) in currentGame.players"
-              :key="player.playerId"
-              class="flex items-center justify-between text-sm"
-            >
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500">#{{ index + 1 }}</span>
-                <span :class="player.playerId === winner?.playerId ? 'text-dart-gold font-bold' : 'text-white'">
-                  {{ player.playerName }}
-                </span>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="text-slate-400">{{ player.remainingScore }} left</span>
-                <span class="text-white font-mono">Ø {{ player.averageScore.toFixed(1) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="space-y-3">
-          <UiButton variant="primary" full-width @click="navigateTo('/game/new')">
-            🎯 New Game
-          </UiButton>
-          <UiButton variant="secondary" full-width @click="navigateTo('/history')">
-            📊 View Match History
-          </UiButton>
-          <UiButton variant="ghost" full-width @click="navigateTo('/')">
-            🏠 Back to Home
-          </UiButton>
-        </div>
-      </div>
-    </div>
+    <GameCompletedScreen
+      v-else-if="currentGame.status === 'completed'"
+      :winner="winner"
+      :players="currentGame.players"
+      :turns="currentGame.turns"
+      @new-game="navigateTo('/game/new')"
+      @view-history="navigateTo('/history')"
+      @go-home="navigateTo('/')"
+    />
 
     <!-- Exit Confirmation Modal -->
     <UiModal
@@ -261,7 +183,7 @@ const gameId = route.params.id as string
 
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
-const { currentGame, loading, currentPlayer, isGameActive, isCurrentPlayerBot, canUndo, winner } = storeToRefs(gameStore)
+const { currentGame, loading, currentPlayer, isGameActive, isCurrentPlayerBot, winner } = storeToRefs(gameStore)
 const { showCheckoutHints } = storeToRefs(settingsStore)
 
 // Bot player handling
@@ -359,46 +281,18 @@ const getSetsWonByOthers = (playerId: string): number => {
   )
 }
 
-// Get the checkout score (last turn's total score)
-const getCheckoutScore = (): number => {
-  if (!currentGame.value || !winner.value) return 0
+// Calculate provisional score using shared composable
+const { calculateProvisionalScore } = useDisplayScore()
 
-  // Find the last turn for the winner (which should be the checkout turn)
-  const winnerTurns = currentGame.value.turns.filter(t => t.playerId === winner.value!.playerId)
-  const lastTurn = winnerTurns[winnerTurns.length - 1]
-
-  return lastTurn?.totalScore || 0
-}
-
-// Calculate provisional score (current player's remaining score minus current turn total)
 const provisionalScore = computed(() => {
   if (!currentPlayer.value || !currentGame.value) return 0
 
-  // If there are darts in the current turn, calculate provisional score
-  if (currentDarts.value.length > 0) {
-    // Check double-in rule: if player hasn't started, only count darts after first double
-    if (currentGame.value.settings.doubleIn && !currentPlayer.value.hasStarted) {
-      const hasDouble = currentDarts.value.some(dart => dart.multiplier === 2 && dart.totalValue > 0)
-
-      if (!hasDouble) {
-        // No double hit yet - no score reduction
-        return currentPlayer.value.remainingScore
-      }
-
-      // Player hit a double - count darts from first double onwards
-      const firstDoubleIndex = currentDarts.value.findIndex(dart => dart.multiplier === 2 && dart.totalValue > 0)
-      const dartsAfterDouble = currentDarts.value.slice(firstDoubleIndex)
-      const turnTotal = dartsAfterDouble.reduce((sum, dart) => sum + dart.totalValue, 0)
-      return Math.max(0, currentPlayer.value.remainingScore - turnTotal)
-    }
-
-    // Normal calculation (player has already started or no double-in rule)
-    const turnTotal = currentDarts.value.reduce((sum, dart) => sum + dart.totalValue, 0)
-    return Math.max(0, currentPlayer.value.remainingScore - turnTotal)
-  }
-
-  // Otherwise return the actual remaining score
-  return currentPlayer.value.remainingScore
+  return calculateProvisionalScore(
+    currentPlayer.value.remainingScore,
+    currentDarts.value,
+    currentGame.value.settings,
+    currentPlayer.value.hasStarted
+  )
 })
 
 // Load game on mount
