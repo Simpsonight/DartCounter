@@ -41,7 +41,11 @@
         </div>
 
         <div class="flex items-center justify-between">
-          <div>
+          <div v-if="match.isTraining" class="flex items-center gap-1.5">
+            <span class="text-primary-400">🎯</span>
+            <span class="text-primary-400 font-medium">Training</span>
+          </div>
+          <div v-else>
             <span class="text-slate-400 text-sm">vs </span>
             <span class="text-white font-medium">{{ match.opponent }}</span>
           </div>

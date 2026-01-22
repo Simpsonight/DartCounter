@@ -1,5 +1,20 @@
 <template>
   <div class="space-y-6">
+    <!-- Filter Toggle -->
+    <div class="flex gap-2">
+      <button
+        v-for="filter in filterOptions"
+        :key="filter.value"
+        @click="statsFilter = filter.value"
+        class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+        :class="statsFilter === filter.value
+          ? 'bg-primary-500 text-white'
+          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'"
+      >
+        {{ filter.label }}
+      </button>
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="text-center">
@@ -250,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import type { DetailedPlayerStats } from '~/composables/useStatistics'
+import type { DetailedPlayerStats, StatsFilter } from '~/composables/useStatistics'
 
 interface Props {
   playerId: string
@@ -262,28 +277,40 @@ const { getDetailedPlayerStats } = useStatistics()
 
 const loading = ref(true)
 const stats = ref<DetailedPlayerStats | null>(null)
+const statsFilter = ref<StatsFilter>('all')
+
+// Filter options
+const filterOptions = [
+  { value: 'all' as StatsFilter, label: 'Alle' },
+  { value: 'matches' as StatsFilter, label: 'Nur Matches' },
+  { value: 'training' as StatsFilter, label: 'Nur Training' }
+]
+
+// Load stats function
+const loadStats = async () => {
+  loading.value = true
+  try {
+    stats.value = await getDetailedPlayerStats(props.playerId, statsFilter.value)
+  } catch (error) {
+    console.error('Failed to load player stats:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 // Load stats on mount
 onMounted(async () => {
-  try {
-    stats.value = await getDetailedPlayerStats(props.playerId)
-  } catch (error) {
-    console.error('Failed to load player stats:', error)
-  } finally {
-    loading.value = false
-  }
+  await loadStats()
 })
 
 // Watch for player changes
-watch(() => props.playerId, async (newId) => {
-  loading.value = true
-  try {
-    stats.value = await getDetailedPlayerStats(newId)
-  } catch (error) {
-    console.error('Failed to load player stats:', error)
-  } finally {
-    loading.value = false
-  }
+watch(() => props.playerId, async () => {
+  await loadStats()
+})
+
+// Watch for filter changes
+watch(statsFilter, async () => {
+  await loadStats()
 })
 
 // Computed properties

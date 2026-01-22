@@ -350,8 +350,8 @@ onMounted(async () => {
   try {
     // Load players for filter dropdown
     await playersStore.loadPlayers()
-    // Load matches
-    allMatches.value = await getMatchSummaries()
+    // Load matches (exclude training sessions - solo games)
+    allMatches.value = await getMatchSummaries(true)
   } catch (error) {
     console.error('Failed to load matches:', error)
   } finally {

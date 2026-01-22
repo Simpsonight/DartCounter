@@ -81,7 +81,10 @@ export interface MatchStatPoint {
   threeDartAvg: number
   checkout: number | null
   opponent: string
+  isTraining: boolean
 }
+
+export type StatsFilter = 'all' | 'matches' | 'training'
 
 /**
  * Calculate detailed statistics from match history
@@ -200,9 +203,18 @@ export const useStatistics = () => {
 
   /**
    * Get comprehensive player statistics
+   * @param playerId - Player ID to get stats for
+   * @param filter - Filter for training/matches: 'all' | 'matches' | 'training'
    */
-  const getDetailedPlayerStats = async (playerId: string): Promise<DetailedPlayerStats> => {
-    const matches = await filterMatches({ playerId })
+  const getDetailedPlayerStats = async (playerId: string, filter: StatsFilter = 'all'): Promise<DetailedPlayerStats> => {
+    let matches = await filterMatches({ playerId })
+
+    // Apply training/match filter
+    if (filter === 'training') {
+      matches = matches.filter(m => m.players.length === 1)
+    } else if (filter === 'matches') {
+      matches = matches.filter(m => m.players.length > 1)
+    }
 
     // Initialize stats
     const stats: DetailedPlayerStats = {
@@ -265,6 +277,7 @@ export const useStatistics = () => {
       if (won) stats.gamesWon++
 
       // Match history point
+      const isTraining = match.players.length === 1
       const opponent = match.players.find(p => p.playerId !== playerId)
       const matchThreeDartAvg = calculateThreeDartAverage(match.turns, playerId)
       matchAverages.push(matchThreeDartAvg)
@@ -280,7 +293,8 @@ export const useStatistics = () => {
         won,
         threeDartAvg: Math.round(matchThreeDartAvg * 10) / 10,
         checkout: checkoutTurn?.totalScore || null,
-        opponent: opponent?.playerName || 'Unknown'
+        opponent: isTraining ? 'Training' : (opponent?.playerName || 'Unknown'),
+        isTraining
       })
 
       // Accumulate totals

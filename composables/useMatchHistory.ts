@@ -33,10 +33,17 @@ export const useMatchHistory = () => {
 
   /**
    * Get match summaries (lighter weight for list view)
+   * @param excludeTraining - If true, excludes solo games (training sessions)
    */
-  const getMatchSummaries = async (): Promise<MatchSummary[]> => {
+  const getMatchSummaries = async (excludeTraining = false): Promise<MatchSummary[]> => {
     try {
-      const matches = await getAllMatches()
+      let matches = await getAllMatches()
+
+      // Filter out training sessions (solo games with 1 player)
+      if (excludeTraining) {
+        matches = matches.filter(m => m.players.length > 1)
+      }
+
       return matches.map(match => {
         const winner = match.players.find(p => p.playerId === match.winnerId)
         return {

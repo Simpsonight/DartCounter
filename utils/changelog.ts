@@ -24,6 +24,33 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.0',
+    date: '2026-01-22',
+    title: 'Training vs. Match',
+    changes: [
+      {
+        type: 'added',
+        description: 'Training mode detection for solo games (1 player)',
+      },
+      {
+        type: 'added',
+        description: 'Training badge (🎯) in player match history for solo sessions',
+      },
+      {
+        type: 'added',
+        description: 'Statistics filter: All / Matches only / Training only',
+      },
+      {
+        type: 'changed',
+        description: 'Match History page (/history) now shows only real matches',
+      },
+      {
+        type: 'changed',
+        description: 'Player page shows both matches and training sessions',
+      },
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-01-21',
     title: 'Bot Player',
