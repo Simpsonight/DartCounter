@@ -166,6 +166,21 @@
 <script setup lang="ts">
 import type { PlayerFormData } from '~/types/player'
 
+// Lazy load heavy components for better initial load performance
+const PlayerStats = defineAsyncComponent({
+  loader: () => import('~/components/player/Stats.vue'),
+  loadingComponent: {
+    template: '<div class="text-center py-8"><div class="animate-spin text-4xl">⟳</div><p class="text-slate-400 mt-2">Loading statistics...</p></div>'
+  }
+})
+
+const PlayerMatchHistory = defineAsyncComponent({
+  loader: () => import('~/components/player/MatchHistory.vue'),
+  loadingComponent: {
+    template: '<div class="text-center py-8"><div class="animate-spin text-4xl">⟳</div><p class="text-slate-400 mt-2">Loading match history...</p></div>'
+  }
+})
+
 const route = useRoute()
 const playerId = route.params.id as string
 

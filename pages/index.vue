@@ -75,6 +75,10 @@
 </template>
 
 <script setup lang="ts">
+// Lazy load install prompts - they show after delay or on user action
+const UiInstallPrompt = defineAsyncComponent(() => import('~/components/ui/InstallPrompt.vue'))
+const UiIOSInstallPrompt = defineAsyncComponent(() => import('~/components/ui/IOSInstallPrompt.vue'))
+
 useHead({
   title: 'Home - Dart Counter'
 })

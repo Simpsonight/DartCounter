@@ -127,6 +127,8 @@ const removeAvatar = () => {
   formData.avatar = undefined
 }
 
+const { sanitizePlayerName } = useSanitize()
+
 const handleSubmit = async () => {
   if (!validateName() || loading.value) {
     return
@@ -135,7 +137,7 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     emit('submit', {
-      name: formData.name.trim(),
+      name: sanitizePlayerName(formData.name),
       avatar: formData.avatar
     })
   } finally {
