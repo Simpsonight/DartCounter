@@ -259,8 +259,8 @@ export const useGameStore = defineStore('game', () => {
         currentPlayer.averageScore = totalScored / currentPlayer.turnCount
       }
 
-      // Track checkout attempts
-      if (currentPlayer.remainingScore <= 170) {
+      // Track checkout attempts (based on score BEFORE the turn, not after)
+      if (turn.scoreBeforeTurn <= 170) {
         currentPlayer.checkoutAttempts += 1
         if (validation.isCheckout) {
           currentPlayer.successfulCheckouts += 1
