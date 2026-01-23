@@ -1,9 +1,9 @@
 <template>
-  <div>
+  <UiErrorBoundary>
     <Analytics />
     <NuxtPage />
     <UiToastContainer />
-  </div>
+  </UiErrorBoundary>
 </template>
 
 <script setup lang="ts">

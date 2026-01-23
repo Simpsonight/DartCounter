@@ -16,12 +16,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
-      <div class="text-center">
-        <div class="inline-block animate-spin text-4xl mb-4">⟳</div>
-        <p class="text-slate-400">Loading statistics...</p>
-      </div>
-    </div>
+    <UiLoadingSpinner v-if="loading" text="Loading statistics..." size="lg" />
 
     <template v-else-if="stats">
       <!-- Main Stats Grid -->

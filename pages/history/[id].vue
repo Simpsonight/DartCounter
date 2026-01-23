@@ -1,12 +1,7 @@
 <template>
   <div class="min-h-screen bg-slate-950 safe-top safe-bottom">
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center min-h-screen">
-      <div class="text-center">
-        <div class="inline-block animate-spin text-4xl mb-4">⟳</div>
-        <p class="text-slate-400">Loading match details...</p>
-      </div>
-    </div>
+    <UiPageLoading v-if="loading" text="Loading match details..." />
 
     <!-- Match Not Found -->
     <div v-else-if="!match" class="flex items-center justify-center min-h-screen">

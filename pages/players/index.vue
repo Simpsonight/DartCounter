@@ -42,9 +42,8 @@
     <!-- Content -->
     <div class="max-w-2xl mx-auto px-4 py-6">
       <!-- Loading State -->
-      <div v-if="loading && !hasPlayers" class="card text-center py-12">
-        <div class="inline-block animate-spin text-4xl mb-4">⟳</div>
-        <p class="text-slate-400">Loading players...</p>
+      <div v-if="loading && !hasPlayers" class="card">
+        <UiLoadingSpinner text="Loading players..." size="lg" />
       </div>
 
       <!-- Player List -->

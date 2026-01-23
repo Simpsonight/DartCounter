@@ -1,12 +1,7 @@
 <template>
   <div class="min-h-screen bg-slate-950 safe-top">
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center min-h-screen">
-      <div class="text-center">
-        <div class="inline-block animate-spin text-4xl mb-4">⟳</div>
-        <p class="text-slate-400">Loading game...</p>
-      </div>
-    </div>
+    <UiPageLoading v-if="loading" text="Loading game..." />
 
     <!-- Game Not Found -->
     <div v-else-if="!currentGame" class="flex items-center justify-center min-h-screen">

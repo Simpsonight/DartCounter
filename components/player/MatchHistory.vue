@@ -1,12 +1,7 @@
 <template>
   <div class="space-y-4">
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
-      <div class="text-center">
-        <div class="inline-block animate-spin text-4xl mb-4">⟳</div>
-        <p class="text-slate-400">Loading matches...</p>
-      </div>
-    </div>
+    <UiLoadingSpinner v-if="loading" text="Loading matches..." size="lg" />
 
     <!-- Empty State -->
     <div v-else-if="matches.length === 0" class="text-center py-12">
