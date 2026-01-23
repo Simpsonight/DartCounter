@@ -24,6 +24,45 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.6.0',
+    date: '2026-01-23',
+    title: 'Testing & Stability',
+    changes: [
+      {
+        type: 'added',
+        description: 'Unit test suite with 157 tests (Vitest)',
+      },
+      {
+        type: 'added',
+        description: 'Tests for score validation, checkout calculator, sanitization, and statistics',
+      },
+      {
+        type: 'added',
+        description: 'Global error boundary for catching and displaying errors',
+      },
+      {
+        type: 'added',
+        description: 'Error recovery options (dismiss or reload)',
+      },
+      {
+        type: 'added',
+        description: 'Consistent loading spinner component (UiLoadingSpinner)',
+      },
+      {
+        type: 'added',
+        description: 'Full-page loading component (UiPageLoading)',
+      },
+      {
+        type: 'changed',
+        description: 'Unified loading states across all pages and components',
+      },
+      {
+        type: 'added',
+        description: 'useErrorHandler composable for centralized error handling',
+      },
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-01-22',
     title: 'Training vs. Match',
