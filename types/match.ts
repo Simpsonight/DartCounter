@@ -38,6 +38,7 @@ export interface MatchSummary {
   winnerName: string
   duration: number
   completedAt: Date
+  isTraining: boolean
 }
 
 export interface MatchFilter {

@@ -41,12 +41,16 @@ export const CHANGELOG: ChangelogEntry[] = [
         description: 'Statistics filter: All / Matches only / Training only',
       },
       {
-        type: 'changed',
-        description: 'Match History page (/history) now shows only real matches',
+        type: 'added',
+        description: 'Match History page (/history) now shows all games with type filter (All/Matches/Training)',
       },
       {
-        type: 'changed',
-        description: 'Player page shows both matches and training sessions',
+        type: 'added',
+        description: 'Training badge in match history list for solo sessions',
+      },
+      {
+        type: 'fixed',
+        description: 'Checkout attempts now correctly counted based on score before turn, not after',
       },
     ],
   },

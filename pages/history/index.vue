@@ -47,6 +47,24 @@
     >
       <div v-if="showFilters" class="bg-slate-900 border-b border-slate-800">
         <div class="max-w-2xl mx-auto px-4 py-4 space-y-4">
+          <!-- Type Filter (Matches/Training) -->
+          <div>
+            <label class="block text-sm font-medium text-slate-400 mb-2">Typ</label>
+            <div class="flex gap-2 flex-wrap">
+              <button
+                v-for="type in typeFilterOptions"
+                :key="type.value"
+                @click="selectedType = type.value"
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                :class="selectedType === type.value
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'"
+              >
+                {{ type.label }}
+              </button>
+            </div>
+          </div>
+
           <!-- Game Mode Filter -->
           <div>
             <label class="block text-sm font-medium text-slate-400 mb-2">Game Mode</label>
@@ -180,6 +198,9 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-3 mb-2">
                 <span class="text-2xl font-bold text-primary-400">{{ match.gameMode }}</span>
+                <span v-if="match.isTraining" class="px-2 py-0.5 rounded text-xs font-medium bg-primary-500/20 text-primary-400">
+                  🎯 Training
+                </span>
                 <span class="text-sm text-slate-500">{{ formatDate(match.completedAt) }}</span>
               </div>
 
@@ -227,11 +248,18 @@ const allMatches = ref<MatchSummary[]>([])
 const showFilters = ref(false)
 
 // Filter state
+const selectedType = ref<'all' | 'matches' | 'training'>('all')
 const selectedGameMode = ref<GameMode | ''>('')
 const selectedPlayerId = ref('')
 const selectedDateRange = ref<'all' | 'today' | 'week' | 'month' | 'year'>('all')
 
 // Filter options
+const typeFilterOptions = [
+  { value: 'all', label: 'Alle' },
+  { value: 'matches', label: 'Matches' },
+  { value: 'training', label: 'Training' }
+] as const
+
 const gameModeOptions = [
   { value: '', label: 'All' },
   { value: '301', label: '301' },
@@ -252,7 +280,8 @@ const players = computed(() => playersStore.players)
 
 // Check if any filters are active
 const hasActiveFilters = computed(() => {
-  return selectedGameMode.value !== '' ||
+  return selectedType.value !== 'all' ||
+    selectedGameMode.value !== '' ||
     selectedPlayerId.value !== '' ||
     selectedDateRange.value !== 'all'
 })
@@ -284,6 +313,13 @@ const getDateRangeBoundary = (range: typeof selectedDateRange.value): Date | nul
 // Filtered matches
 const filteredMatches = computed(() => {
   let filtered = [...allMatches.value]
+
+  // Filter by type (matches/training)
+  if (selectedType.value === 'matches') {
+    filtered = filtered.filter(m => !m.isTraining)
+  } else if (selectedType.value === 'training') {
+    filtered = filtered.filter(m => m.isTraining)
+  }
 
   // Filter by game mode
   if (selectedGameMode.value) {
@@ -340,6 +376,7 @@ const totalPlayTime = computed(() => {
 
 // Clear all filters
 const clearFilters = () => {
+  selectedType.value = 'all'
   selectedGameMode.value = ''
   selectedPlayerId.value = ''
   selectedDateRange.value = 'all'
@@ -350,8 +387,8 @@ onMounted(async () => {
   try {
     // Load players for filter dropdown
     await playersStore.loadPlayers()
-    // Load matches (exclude training sessions - solo games)
-    allMatches.value = await getMatchSummaries(true)
+    // Load all matches (including training sessions)
+    allMatches.value = await getMatchSummaries()
   } catch (error) {
     console.error('Failed to load matches:', error)
   } finally {

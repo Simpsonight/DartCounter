@@ -52,7 +52,8 @@ export const useMatchHistory = () => {
           playerNames: match.players.map(p => p.playerName),
           winnerName: winner?.playerName || 'Unknown',
           duration: match.duration,
-          completedAt: match.completedAt
+          completedAt: match.completedAt,
+          isTraining: match.players.length === 1
         }
       })
     } catch (error) {

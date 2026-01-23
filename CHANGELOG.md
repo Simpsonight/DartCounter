@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Training mode detection for solo games (1 player)
 - Training badge (🎯) in player match history for solo sessions
 - Statistics filter: All / Matches only / Training only
+- Match History page (/history) now shows all games with type filter (All/Matches/Training)
+- Training badge in match history list for solo sessions
 
-#### Changed
+#### Fixed
 
-- Match History page (/history) now shows only real matches
-- Player page shows both matches and training sessions
+- Checkout attempts now correctly counted based on score before turn, not after
 
 ## [0.4.0] - 2026-01-21
 
